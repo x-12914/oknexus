@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cryptx-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cryptx
+      POSTGRES_PASSWORD: cryptx
+      POSTGRES_DB: cryptx
+    ports:
+      - "5432:5432"
+    volumes:
+      - cryptx-pg-data:/var/lib/postgresql/data
+
+volumes:
+  cryptx-pg-data:

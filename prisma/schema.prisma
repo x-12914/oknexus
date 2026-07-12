@@ -1,0 +1,192 @@
+// Prisma schema for the CryptX exchange.
+// Provider is Postgres for production; a docker-compose is included for local dev.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Auth (NextAuth / Auth.js v5) ----------
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  passwordHash  String?
+  role          UserRole  @default(USER)
+  kycStatus     KycStatus @default(NONE)
+  twoFAEnabled  Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  wallets  Wallet[]
+  orders   Order[]
+  trades   Trade[]
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPPORT
+}
+
+enum KycStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------- Wallets ----------
+
+model Asset {
+  symbol      String  @id
+  name        String
+  decimals    Int     @default(8)
+  isFiat      Boolean @default(false)
+  network     String?
+  contract    String?
+  logoUrl     String?
+
+  wallets     Wallet[]
+  baseMarkets  Market[] @relation("BaseAsset")
+  quoteMarkets Market[] @relation("QuoteAsset")
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String
+  symbol    String
+  balance   Decimal  @default(0) @db.Decimal(30, 10)
+  locked    Decimal  @default(0) @db.Decimal(30, 10)
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset Asset @relation(fields: [symbol], references: [symbol])
+
+  @@unique([userId, symbol])
+}
+
+// ---------- Trading ----------
+
+model Market {
+  id            String   @id @default(cuid())
+  symbol        String   @unique
+  baseSymbol    String
+  quoteSymbol   String
+  minOrderSize  Decimal  @default(0) @db.Decimal(30, 10)
+  tickSize      Decimal  @default(0.01) @db.Decimal(30, 10)
+  stepSize      Decimal  @default(0.00000001) @db.Decimal(30, 10)
+  makerFee      Decimal  @default(0.001) @db.Decimal(10, 6)
+  takerFee      Decimal  @default(0.002) @db.Decimal(10, 6)
+  isActive      Boolean  @default(true)
+
+  base   Asset @relation("BaseAsset", fields: [baseSymbol], references: [symbol])
+  quote  Asset @relation("QuoteAsset", fields: [quoteSymbol], references: [symbol])
+  orders Order[]
+  trades Trade[]
+}
+
+enum OrderSide {
+  BUY
+  SELL
+}
+
+enum OrderType {
+  MARKET
+  LIMIT
+}
+
+enum OrderStatus {
+  OPEN
+  PARTIAL
+  FILLED
+  CANCELLED
+  REJECTED
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  userId       String
+  marketId     String
+  side         OrderSide
+  type         OrderType
+  price        Decimal?    @db.Decimal(30, 10)
+  quantity     Decimal     @db.Decimal(30, 10)
+  filledQty    Decimal     @default(0) @db.Decimal(30, 10)
+  avgFillPrice Decimal?    @db.Decimal(30, 10)
+  status       OrderStatus @default(OPEN)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id])
+  market Market  @relation(fields: [marketId], references: [id])
+  trades Trade[]
+
+  @@index([marketId, status])
+  @@index([userId, createdAt])
+}
+
+model Trade {
+  id        String    @id @default(cuid())
+  marketId  String
+  orderId   String
+  userId    String
+  side      OrderSide
+  price     Decimal   @db.Decimal(30, 10)
+  quantity  Decimal   @db.Decimal(30, 10)
+  fee       Decimal   @default(0) @db.Decimal(30, 10)
+  feeSymbol String?
+  createdAt DateTime  @default(now())
+
+  market Market @relation(fields: [marketId], references: [id])
+  order  Order  @relation(fields: [orderId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([marketId, createdAt])
+  @@index([userId, createdAt])
+}
