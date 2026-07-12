@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Wallet, Bell } from "lucide-react";
+import { Bell } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { UserMenu } from "./UserMenu";
+import { WalletBadge } from "./WalletBadge";
 
 export function TopBar({ userEmail }: { userEmail?: string }) {
   return (
@@ -18,13 +19,7 @@ export function TopBar({ userEmail }: { userEmail?: string }) {
         <ThemeToggle />
         {userEmail ? (
           <>
-            <button
-              type="button"
-              className="hidden sm:inline-flex items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-1.5 text-sm hover:bg-[var(--color-border)]"
-            >
-              <Wallet className="h-4 w-4" />
-              <span className="tabular-nums">$10,000.00</span>
-            </button>
+            <WalletBadge />
             <button
               type="button"
               aria-label="Notifications"

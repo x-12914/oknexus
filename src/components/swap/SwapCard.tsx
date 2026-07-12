@@ -7,17 +7,6 @@ import { cn } from "@/lib/utils";
 import type { SwapAsset, SwapQuote } from "@/lib/exchange/types";
 import { AssetSelect, AssetCoin } from "./AssetSelect";
 
-// Demo balances until wallets are wired to the DB.
-const DEMO_BALANCES: Record<string, number> = {
-  USDT: 10000,
-  BTC: 0.15,
-  ETH: 2.5,
-  SOL: 40,
-  BNB: 5,
-  XRP: 5000,
-  ADA: 8000,
-};
-
 const SLIPPAGE_OPTIONS = [0.1, 0.5, 1.0];
 
 function smartQty(v: number): string {
@@ -40,14 +29,26 @@ export function SwapCard() {
 
   const [executing, setExecuting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  // null = not signed in / balances unknown (don't block on "insufficient").
+  const [balances, setBalances] = useState<Record<string, number> | null>(null);
 
   useEffect(() => {
     api.swapAssets().then((r) => setAssets(r.assets)).catch(() => {});
   }, []);
 
+  const loadBalances = useCallback(() => {
+    api
+      .wallet()
+      .then((p) => setBalances(Object.fromEntries(p.items.map((i) => [i.symbol, i.balance]))))
+      .catch(() => setBalances(null));
+  }, []);
+  useEffect(() => {
+    loadBalances();
+  }, [loadBalances]);
+
   const amountNum = Number(fromAmount);
-  const balance = DEMO_BALANCES[fromSymbol] ?? 0;
-  const insufficient = amountNum > balance;
+  const balance = balances?.[fromSymbol] ?? 0;
+  const insufficient = balances != null && amountNum > balance;
 
   const fetchQuote = useCallback(
     async (silent = false) => {
@@ -137,6 +138,7 @@ export function SwapCard() {
       );
       setFromAmount("");
       setQuote(null);
+      loadBalances();
     } catch (e) {
       const msg = (e as Error).message;
       setError(msg);
@@ -247,7 +249,7 @@ export function SwapCard() {
         <div className="flex items-center justify-between text-xs text-[var(--color-muted)] mb-1">
           <span>You receive</span>
           <span>
-            Balance: {smartQty(DEMO_BALANCES[toSymbol] ?? 0)} {toSymbol}
+            Balance: {smartQty(balances?.[toSymbol] ?? 0)} {toSymbol}
           </span>
         </div>
         <div className="flex items-center gap-2">

@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { ensureWallets } from "@/lib/wallet";
 
 const RegisterSchema = z.object({
   email: z.string().email(),
@@ -35,13 +36,16 @@ export async function POST(req: NextRequest) {
   }
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
-  await prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       email,
       passwordHash,
       name: parsed.data.name || null,
     },
   });
+
+  // Seed the new account with demo wallet balances.
+  await ensureWallets(user.id);
 
   return Response.json({ ok: true });
 }

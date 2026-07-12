@@ -9,12 +9,14 @@ import {
   Briefcase,
   Users,
   LayoutDashboard,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/Logo";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/wallet", label: "Wallet", icon: Wallet },
   { href: "/trade/BTC-USDT", label: "Spot Trading", icon: CandlestickChart, match: "/trade" },
   { href: "/swap", label: "Instant Swap", icon: ArrowLeftRight },
   { href: "/buy", label: "Buy Crypto", icon: CreditCard },
