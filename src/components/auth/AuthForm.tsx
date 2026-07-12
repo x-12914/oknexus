@@ -66,8 +66,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         </h1>
         <p className="mt-1 text-sm text-[var(--color-muted)]">
           {isLogin
-            ? "Sign in to your OKNexus account."
-            : "Start trading on OKNexus in seconds."}
+            ? "Sign in to your Nexus account."
+            : "Start trading on Nexus in seconds."}
         </p>
 
         <form onSubmit={submit} className="mt-5 space-y-3">

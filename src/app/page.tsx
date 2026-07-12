@@ -109,15 +109,11 @@ export default function LandingPage() {
         <section className="relative overflow-hidden">
           <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-14 md:grid-cols-2 md:pt-24">
             <div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-xs text-[var(--color-muted)]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-up)]" />
-                Connecting you to the future of finance
-              </span>
-              <h1 className="mt-5 text-4xl font-semibold leading-[1.05] tracking-tight md:text-6xl">
+              <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight md:text-6xl">
                 The next-generation <span className="text-gradient">digital asset</span> exchange
               </h1>
               <p className="mt-5 max-w-lg text-lg leading-relaxed text-[var(--color-muted)]">
-                OKNexus Exchange is the bridge between traditional finance and the future of
+                Nexus Exchange is the bridge between traditional finance and the future of
                 digital assets — secure, fast, and built for everyone from first-time users to
                 institutions.
               </p>
@@ -156,7 +152,7 @@ export default function LandingPage() {
           <SectionHeading
             eyebrow="Brand principles"
             title="Built on principles that matter"
-            subtitle="Every interaction with OKNexus reflects our dedication to transparency, reliability, and continuous innovation."
+            subtitle="Every interaction with Nexus reflects our dedication to transparency, reliability, and continuous innovation."
           />
           <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {PILLARS.map((p) => (
@@ -266,7 +262,7 @@ export default function LandingPage() {
                 Connecting you to the future of finance
               </h2>
               <p className="mx-auto mt-4 max-w-xl text-white/80">
-                Join OKNexus Exchange and start trading digital assets with confidence today.
+                Join Nexus Exchange and start trading digital assets with confidence today.
               </p>
               <div className="mt-8 flex flex-wrap justify-center gap-3">
                 <Link
@@ -294,7 +290,7 @@ export default function LandingPage() {
             <div className="max-w-xs">
               <Logo />
               <p className="mt-3 text-sm leading-relaxed text-[var(--color-muted)]">
-                OKNexus Exchange — Connecting You to the Future of Finance.
+                Nexus Exchange — Connecting You to the Future of Finance.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
@@ -311,7 +307,7 @@ export default function LandingPage() {
               <FooterCol
                 title="Company"
                 links={[
-                  ["Why OKNexus", "#pillars"],
+                  ["Why Nexus", "#pillars"],
                   ["Ecosystem", "#ecosystem"],
                   ["Security", "#security"],
                   ["Vision", "#company"],
@@ -327,7 +323,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="mt-10 flex flex-col gap-2 border-t border-[var(--color-border)] pt-6 text-xs text-[var(--color-muted)] sm:flex-row sm:items-center sm:justify-between">
-            <span>© {2025} OKNexus Exchange. All rights reserved.</span>
+            <span>© {2025} Nexus Exchange. All rights reserved.</span>
             <span>Demo platform · live market data via Binance · not financial advice.</span>
           </div>
         </div>

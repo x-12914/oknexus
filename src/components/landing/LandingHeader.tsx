@@ -6,7 +6,7 @@ import { Logo } from "@/components/brand/Logo";
 import { ThemeToggle } from "@/components/nav/ThemeToggle";
 
 const LINKS = [
-  { href: "#pillars", label: "Why OKNexus" },
+  { href: "#pillars", label: "Why Nexus" },
   { href: "#ecosystem", label: "Products" },
   { href: "#security", label: "Security" },
   { href: "#company", label: "Company" },
@@ -16,7 +16,7 @@ export function LandingHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--color-border)] bg-[var(--topbar-bg)] backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link href="/" aria-label="OKNexus home">
+        <Link href="/" aria-label="Nexus home">
           <Logo />
         </Link>
         <nav className="hidden items-center gap-7 text-sm text-[var(--color-muted)] md:flex">
