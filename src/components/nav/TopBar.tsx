@@ -1,7 +1,8 @@
-import { Wallet, Bell, ChevronDown } from "lucide-react";
+import { Wallet, Bell } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
+import { UserMenu } from "./UserMenu";
 
-export function TopBar() {
+export function TopBar({ userEmail }: { userEmail?: string }) {
   return (
     <header className="h-14 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--topbar-bg)] backdrop-blur-xl px-4">
       <div className="flex items-center gap-2 text-sm text-[var(--color-muted)]">
@@ -28,16 +29,7 @@ export function TopBar() {
         >
           <Bell className="h-4 w-4" />
         </button>
-        <button
-          type="button"
-          className="flex items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5 text-sm hover:bg-[var(--color-border)]"
-        >
-          <div className="h-6 w-6 rounded-full bg-brand-gradient text-white grid place-items-center text-xs font-bold">
-            U
-          </div>
-          <span className="hidden sm:inline">demo@cryptx</span>
-          <ChevronDown className="h-3 w-3 text-[var(--color-muted)]" />
-        </button>
+        <UserMenu email={userEmail} />
       </div>
     </header>
   );
