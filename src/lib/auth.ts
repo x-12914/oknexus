@@ -4,6 +4,12 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import type { UserRole } from "@prisma/client";
 
+/** The signed-in user's id, or null. Use in route handlers to gate actions. */
+export async function sessionUserId(): Promise<string | null> {
+  const session = await auth();
+  return session?.user?.id ?? null;
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // Behind the nginx reverse proxy in production.
   trustHost: true,

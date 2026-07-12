@@ -31,6 +31,22 @@ async function j<T>(res: Response): Promise<T> {
   return (await res.json()) as T;
 }
 
+// For state-changing calls: a 401 means "not signed in" — send them to login.
+async function mutate<T>(res: Response, fallbackMsg: string): Promise<T> {
+  if (res.status === 401) {
+    if (typeof window !== "undefined") window.location.href = "/login";
+    throw new Error("Please sign in to continue.");
+  }
+  if (!res.ok) {
+    const msg = await res
+      .json()
+      .then((b) => (b as { error?: string })?.error)
+      .catch(() => undefined);
+    throw new Error(msg ?? fallbackMsg);
+  }
+  return (await res.json()) as T;
+}
+
 export const api = {
   markets: () =>
     fetch("/api/markets", { cache: "no-store" }).then((r) =>
@@ -68,7 +84,7 @@ export const api = {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(input),
-    }).then((r) => j<OrderResult>(r)),
+    }).then((r) => mutate<OrderResult>(r, "Could not place order")),
 
   openOrders: (pair?: string) =>
     fetch(`/api/orders${pair ? `?pair=${pair}` : ""}`, { cache: "no-store" }).then(
@@ -76,7 +92,9 @@ export const api = {
     ),
 
   cancelOrder: (id: string) =>
-    fetch(`/api/orders/${id}`, { method: "DELETE" }).then((r) => j<OrderResult>(r)),
+    fetch(`/api/orders/${id}`, { method: "DELETE" }).then((r) =>
+      mutate<OrderResult>(r, "Could not cancel order"),
+    ),
 
   swapAssets: () =>
     fetch("/api/swap/assets", { cache: "no-store" }).then((r) =>
@@ -98,10 +116,7 @@ export const api = {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ quoteId }),
-    }).then(async (r) => {
-      if (!r.ok) throw new Error((await r.json()).error ?? "Swap failed");
-      return (await r.json()) as SwapResult;
-    }),
+    }).then((r) => mutate<SwapResult>(r, "Swap failed")),
 
   rampConfig: () =>
     fetch("/api/ramp/config", { cache: "no-store" }).then((r) =>
@@ -123,10 +138,7 @@ export const api = {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ quoteId }),
-    }).then(async (r) => {
-      if (!r.ok) throw new Error((await r.json()).error ?? "Payment failed");
-      return (await r.json()) as RampResult;
-    }),
+    }).then((r) => mutate<RampResult>(r, "Payment failed")),
 
   otcConfig: () =>
     fetch("/api/otc/config", { cache: "no-store" }).then((r) => j<OtcConfig>(r)),
@@ -146,10 +158,7 @@ export const api = {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ quoteId }),
-    }).then(async (r) => {
-      if (!r.ok) throw new Error((await r.json()).error ?? "Settlement failed");
-      return (await r.json()) as OtcResult;
-    }),
+    }).then((r) => mutate<OtcResult>(r, "Settlement failed")),
 
   p2pPaymentMethods: () =>
     fetch("/api/p2p/payment-methods", { cache: "no-store" }).then((r) =>
@@ -169,10 +178,7 @@ export const api = {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ adId, fiatAmount, paymentMethod }),
-    }).then(async (r) => {
-      if (!r.ok) throw new Error((await r.json()).error ?? "Could not open trade");
-      return (await r.json()) as P2POrder;
-    }),
+    }).then((r) => mutate<P2POrder>(r, "Could not open trade")),
 
   p2pOrders: () =>
     fetch("/api/p2p/orders", { cache: "no-store" }).then((r) =>
@@ -187,18 +193,12 @@ export const api = {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ action }),
-    }).then(async (r) => {
-      if (!r.ok) throw new Error((await r.json()).error ?? "Action failed");
-      return (await r.json()) as P2POrder;
-    }),
+    }).then((r) => mutate<P2POrder>(r, "Action failed")),
 
   p2pSendMessage: (id: string, text: string) =>
     fetch(`/api/p2p/orders/${id}/messages`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ text }),
-    }).then(async (r) => {
-      if (!r.ok) throw new Error((await r.json()).error ?? "Could not send");
-      return (await r.json()) as P2POrder;
-    }),
+    }).then((r) => mutate<P2POrder>(r, "Could not send")),
 };

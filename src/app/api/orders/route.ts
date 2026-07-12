@@ -2,8 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { getExchange } from "@/lib/exchange";
 import { pairToSymbol } from "@/lib/pair";
-
-const DEMO_USER = "demo-user";
+import { sessionUserId } from "@/lib/auth";
 
 const PlaceOrderSchema = z.object({
   pair: z.string().min(3),
@@ -14,6 +13,9 @@ const PlaceOrderSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const userId = await sessionUserId();
+  if (!userId) return Response.json({ error: "Please sign in to trade." }, { status: 401 });
+
   const raw = await req.json();
   const parsed = PlaceOrderSchema.safeParse(raw);
   if (!parsed.success) {
@@ -28,7 +30,7 @@ export async function POST(req: NextRequest) {
   }
 
   const order = await getExchange().placeOrder({
-    userId: DEMO_USER,
+    userId,
     symbol: pairToSymbol(input.pair),
     side: input.side,
     type: input.type,
@@ -40,8 +42,11 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  const userId = await sessionUserId();
+  if (!userId) return Response.json({ orders: [] });
+
   const pair = req.nextUrl.searchParams.get("pair");
   const symbol = pair ? pairToSymbol(pair) : undefined;
-  const orders = await getExchange().listOpenOrders(DEMO_USER, symbol);
+  const orders = await getExchange().listOpenOrders(userId, symbol);
   return Response.json({ orders });
 }

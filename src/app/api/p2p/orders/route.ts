@@ -1,8 +1,7 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { getExchange } from "@/lib/exchange";
-
-const DEMO_USER = "demo-user";
+import { sessionUserId } from "@/lib/auth";
 
 const CreateSchema = z.object({
   adId: z.string().min(1),
@@ -11,18 +10,24 @@ const CreateSchema = z.object({
 });
 
 export async function GET() {
-  const orders = await getExchange().listP2POrders(DEMO_USER);
+  const userId = await sessionUserId();
+  if (!userId) return Response.json({ orders: [] });
+
+  const orders = await getExchange().listP2POrders(userId);
   return Response.json({ orders });
 }
 
 export async function POST(req: NextRequest) {
+  const userId = await sessionUserId();
+  if (!userId) return Response.json({ error: "Please sign in to trade." }, { status: 401 });
+
   const parsed = CreateSchema.safeParse(await req.json());
   if (!parsed.success) {
     return Response.json({ error: "Invalid trade request" }, { status: 400 });
   }
   try {
     const order = await getExchange().createP2POrder({
-      userId: DEMO_USER,
+      userId,
       ...parsed.data,
     });
     return Response.json(order);
