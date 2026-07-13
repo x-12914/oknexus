@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { getExchange } from "@/lib/exchange";
 import { pairToSymbol } from "@/lib/pair";
 import { sessionUserId } from "@/lib/auth";
+import { placeOrder, listOpenOrders } from "@/lib/orders";
 
 const PlaceOrderSchema = z.object({
   pair: z.string().min(3),
@@ -29,16 +29,26 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Limit orders require a price" }, { status: 400 });
   }
 
-  const order = await getExchange().placeOrder({
-    userId,
-    symbol: pairToSymbol(input.pair),
-    side: input.side,
-    type: input.type,
-    quantity: input.quantity,
-    price: input.price,
-  });
-
-  return Response.json(order);
+  try {
+    const order = await placeOrder({
+      userId,
+      symbol: pairToSymbol(input.pair),
+      side: input.side,
+      type: input.type,
+      quantity: input.quantity,
+      price: input.price,
+    });
+    return Response.json(order);
+  } catch (e) {
+    const message = (e as Error).message;
+    if (message === "INSUFFICIENT_BALANCE") {
+      return Response.json(
+        { error: "Insufficient balance for this order." },
+        { status: 400 },
+      );
+    }
+    return Response.json({ error: message }, { status: 400 });
+  }
 }
 
 export async function GET(req: NextRequest) {
@@ -47,6 +57,6 @@ export async function GET(req: NextRequest) {
 
   const pair = req.nextUrl.searchParams.get("pair");
   const symbol = pair ? pairToSymbol(pair) : undefined;
-  const orders = await getExchange().listOpenOrders(userId, symbol);
+  const orders = await listOpenOrders(userId, symbol);
   return Response.json({ orders });
 }

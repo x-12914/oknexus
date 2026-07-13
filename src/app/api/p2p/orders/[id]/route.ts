@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
-import { getExchange } from "@/lib/exchange";
 import { sessionUserId } from "@/lib/auth";
+import { getP2POrder } from "@/lib/p2p";
 
 export async function GET(
   _req: NextRequest,
@@ -10,7 +10,7 @@ export async function GET(
   if (!userId) return Response.json({ error: "Order not found" }, { status: 404 });
 
   const { id } = await ctx.params;
-  const order = await getExchange().getP2POrder(userId, id);
+  const order = await getP2POrder(userId, id);
   if (!order) {
     return Response.json({ error: "Order not found" }, { status: 404 });
   }

@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { getExchange } from "@/lib/exchange";
 import { sessionUserId } from "@/lib/auth";
+import { settleOtc } from "@/lib/settlement";
 
 const AcceptSchema = z.object({
   quoteId: z.string().min(3),
@@ -17,9 +18,17 @@ export async function POST(req: NextRequest) {
   }
   try {
     const result = await getExchange().acceptOtcQuote(userId, parsed.data.quoteId);
+    // BUY debits USDT / credits base; SELL debits base / credits USDT.
+    await settleOtc(userId, result);
     return Response.json(result);
   } catch (e) {
     const message = (e as Error).message;
+    if (message === "INSUFFICIENT_BALANCE") {
+      return Response.json(
+        { error: "Insufficient balance to settle this block." },
+        { status: 400 },
+      );
+    }
     const status = message === "Quote expired" ? 410 : 400;
     return Response.json({ error: message }, { status });
   }

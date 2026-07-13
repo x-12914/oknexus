@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { getExchange } from "@/lib/exchange";
 import { sessionUserId } from "@/lib/auth";
-import { settleSwap } from "@/lib/wallet";
+import { settleSwap } from "@/lib/settlement";
 
 const ExecuteSchema = z.object({
   quoteId: z.string().min(3),
@@ -18,14 +18,8 @@ export async function POST(req: NextRequest) {
   }
   try {
     const result = await getExchange().executeSwap(userId, parsed.data.quoteId);
-    // Move the balances in the user's wallets.
-    await settleSwap(
-      userId,
-      result.fromSymbol,
-      result.fromAmount,
-      result.toSymbol,
-      result.toAmount,
-    );
+    // Move the balances in the user's wallets + record the swap.
+    await settleSwap(userId, result);
     return Response.json(result);
   } catch (e) {
     const message = (e as Error).message;

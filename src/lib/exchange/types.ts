@@ -158,6 +158,7 @@ export interface RampResult {
   side: RampSide;
   fiatCode: string;
   cryptoSymbol: string;
+  paymentMethodId: string;
   fiatAmount: number; // gross fiat
   totalFiat: number; // BUY: total charged; SELL: net received
   cryptoAmount: number;

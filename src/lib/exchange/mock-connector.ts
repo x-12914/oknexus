@@ -552,6 +552,7 @@ export class MockExchangeConnector implements ExchangeConnector {
       side: quote.side,
       fiatCode: quote.fiatCode,
       cryptoSymbol: quote.cryptoSymbol,
+      paymentMethodId: quote.paymentMethodId,
       fiatAmount: quote.fiatAmount,
       totalFiat: quote.totalFiat,
       cryptoAmount: quote.cryptoAmount,

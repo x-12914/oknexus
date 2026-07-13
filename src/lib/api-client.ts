@@ -25,7 +25,7 @@ import type {
   P2POrderAction,
   Ticker,
 } from "@/lib/exchange/types";
-import type { Portfolio } from "@/lib/wallet-types";
+import type { Portfolio, LedgerActivity } from "@/lib/wallet-types";
 
 async function j<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
@@ -50,6 +50,11 @@ async function mutate<T>(res: Response, fallbackMsg: string): Promise<T> {
 
 export const api = {
   wallet: () => fetch("/api/wallet", { cache: "no-store" }).then((r) => j<Portfolio>(r)),
+
+  transactions: () =>
+    fetch("/api/transactions", { cache: "no-store" }).then((r) =>
+      j<{ activity: LedgerActivity[] }>(r),
+    ),
 
   markets: () =>
     fetch("/api/markets", { cache: "no-store" }).then((r) =>

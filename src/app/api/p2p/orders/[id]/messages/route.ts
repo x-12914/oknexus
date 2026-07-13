@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { getExchange } from "@/lib/exchange";
 import { sessionUserId } from "@/lib/auth";
+import { sendP2PMessage } from "@/lib/p2p";
 
 const MessageSchema = z.object({
   text: z.string().min(1).max(500),
@@ -20,7 +20,7 @@ export async function POST(
     return Response.json({ error: "Invalid message" }, { status: 400 });
   }
   try {
-    const order = await getExchange().sendP2PMessage(userId, id, parsed.data.text);
+    const order = await sendP2PMessage(userId, id, parsed.data.text);
     return Response.json(order);
   } catch (e) {
     return Response.json({ error: (e as Error).message }, { status: 400 });

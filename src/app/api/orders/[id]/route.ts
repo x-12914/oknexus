@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
-import { getExchange } from "@/lib/exchange";
 import { sessionUserId } from "@/lib/auth";
+import { cancelOrder } from "@/lib/orders";
 
 export async function DELETE(
   _req: NextRequest,
@@ -11,7 +11,7 @@ export async function DELETE(
 
   const { id } = await ctx.params;
   try {
-    const order = await getExchange().cancelOrder(userId, id);
+    const order = await cancelOrder(userId, id);
     return Response.json(order);
   } catch (e) {
     return Response.json({ error: (e as Error).message }, { status: 404 });

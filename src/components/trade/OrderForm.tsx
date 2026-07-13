@@ -200,7 +200,7 @@ export function OrderForm({
         </button>
 
         <div className="text-[10px] text-[var(--color-muted)] pt-2 leading-relaxed">
-          Demo balance $10,000 · Fees: 0.10% maker · 0.20% taker
+          Fees: 0.10% maker · 0.20% taker · settles to your wallet
         </div>
       </div>
     </div>

@@ -29,6 +29,12 @@ model User {
   wallets  Wallet[]
   orders   Order[]
   trades   Trade[]
+
+  ledgerEntries LedgerEntry[]
+  swaps         SwapTx[]
+  ramps         RampTx[]
+  otcTrades     OtcTrade[]
+  p2pOrders     P2POrder[]
 }
 
 enum UserRole {
@@ -82,15 +88,15 @@ model VerificationToken {
 // ---------- Wallets ----------
 
 model Asset {
-  symbol      String  @id
-  name        String
-  decimals    Int     @default(8)
-  isFiat      Boolean @default(false)
-  network     String?
-  contract    String?
-  logoUrl     String?
+  symbol   String  @id
+  name     String
+  decimals Int     @default(8)
+  isFiat   Boolean @default(false)
+  network  String?
+  contract String?
+  logoUrl  String?
 
-  wallets     Wallet[]
+  wallets      Wallet[]
   baseMarkets  Market[] @relation("BaseAsset")
   quoteMarkets Market[] @relation("QuoteAsset")
 }
@@ -114,19 +120,19 @@ model Wallet {
 // ---------- Trading ----------
 
 model Market {
-  id            String   @id @default(cuid())
-  symbol        String   @unique
-  baseSymbol    String
-  quoteSymbol   String
-  minOrderSize  Decimal  @default(0) @db.Decimal(30, 10)
-  tickSize      Decimal  @default(0.01) @db.Decimal(30, 10)
-  stepSize      Decimal  @default(0.00000001) @db.Decimal(30, 10)
-  makerFee      Decimal  @default(0.001) @db.Decimal(10, 6)
-  takerFee      Decimal  @default(0.002) @db.Decimal(10, 6)
-  isActive      Boolean  @default(true)
+  id           String  @id @default(cuid())
+  symbol       String  @unique
+  baseSymbol   String
+  quoteSymbol  String
+  minOrderSize Decimal @default(0) @db.Decimal(30, 10)
+  tickSize     Decimal @default(0.01) @db.Decimal(30, 10)
+  stepSize     Decimal @default(0.00000001) @db.Decimal(30, 10)
+  makerFee     Decimal @default(0.001) @db.Decimal(10, 6)
+  takerFee     Decimal @default(0.002) @db.Decimal(10, 6)
+  isActive     Boolean @default(true)
 
-  base   Asset @relation("BaseAsset", fields: [baseSymbol], references: [symbol])
-  quote  Asset @relation("QuoteAsset", fields: [quoteSymbol], references: [symbol])
+  base   Asset   @relation("BaseAsset", fields: [baseSymbol], references: [symbol])
+  quote  Asset   @relation("QuoteAsset", fields: [quoteSymbol], references: [symbol])
   orders Order[]
   trades Trade[]
 }
@@ -189,4 +195,151 @@ model Trade {
 
   @@index([marketId, createdAt])
   @@index([userId, createdAt])
+}
+
+// ---------- Ledger (immutable journal over wallet balances) ----------
+//
+// Every balance movement writes one LedgerEntry per (wallet, account) leg with a
+// signed delta and the resulting balance. A single operation (e.g. a swap) writes
+// multiple entries sharing a refId. Wallet.balance / Wallet.locked are the running
+// totals these entries reconcile to.
+
+enum LedgerAccount {
+  AVAILABLE
+  LOCKED
+}
+
+enum LedgerType {
+  SEED
+  SWAP
+  RAMP
+  SPOT
+  OTC
+  P2P
+  DEPOSIT
+  WITHDRAWAL
+  ADJUSTMENT
+}
+
+model LedgerEntry {
+  id           String        @id @default(cuid())
+  userId       String
+  symbol       String
+  account      LedgerAccount @default(AVAILABLE)
+  delta        Decimal       @db.Decimal(30, 10)
+  balanceAfter Decimal       @db.Decimal(30, 10)
+  type         LedgerType
+  refId        String? // groups the legs of one operation
+  memo         String?
+  createdAt    DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([refId])
+}
+
+// ---------- Persisted trade history ----------
+
+model SwapTx {
+  id         String   @id @default(cuid())
+  userId     String
+  fromSymbol String
+  toSymbol   String
+  fromAmount Decimal  @db.Decimal(30, 10)
+  toAmount   Decimal  @db.Decimal(30, 10)
+  rate       Decimal  @db.Decimal(30, 10)
+  feeSymbol  String?
+  feeAmount  Decimal  @default(0) @db.Decimal(30, 10)
+  status     String   @default("FILLED")
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model RampTx {
+  id            String    @id @default(cuid())
+  userId        String
+  side          OrderSide
+  fiatCode      String
+  cryptoSymbol  String
+  fiatAmount    Decimal   @db.Decimal(30, 10)
+  totalFiat     Decimal   @db.Decimal(30, 10)
+  cryptoAmount  Decimal   @db.Decimal(30, 10)
+  paymentMethod String
+  status        String    @default("COMPLETED")
+  createdAt     DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model OtcTrade {
+  id             String    @id @default(cuid())
+  userId         String
+  side           OrderSide
+  baseSymbol     String
+  settleCurrency String
+  baseAmount     Decimal   @db.Decimal(30, 10)
+  price          Decimal   @db.Decimal(30, 10)
+  totalCost      Decimal   @db.Decimal(30, 10)
+  status         String    @default("FILLED")
+  createdAt      DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// ---------- P2P (persisted escrow trades) ----------
+
+enum P2POrderStatus {
+  PENDING_PAYMENT
+  PAID
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+model P2POrder {
+  id                   String         @id @default(cuid())
+  userId               String
+  adId                 String
+  asset                String
+  fiat                 String
+  price                Decimal        @db.Decimal(30, 10)
+  assetAmount          Decimal        @db.Decimal(30, 10)
+  fiatAmount           Decimal        @db.Decimal(30, 10)
+  paymentMethod        String
+  status               P2POrderStatus @default(PENDING_PAYMENT)
+  takerRole            String // "buyer" | "seller"
+  buyerName            String
+  sellerName           String
+  merchantId           String
+  merchant             Json // merchant snapshot for display
+  paymentWindowMinutes Int
+  escrowLocked         Boolean        @default(false)
+  createdAt            DateTime       @default(now())
+  expiresAt            DateTime
+  completedAt          DateTime?
+
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages P2PMessage[]
+
+  @@index([userId, createdAt])
+}
+
+model P2PMessage {
+  id        String   @id @default(cuid())
+  orderId   String
+  sender    String // "buyer" | "seller" | "system"
+  text      String
+  createdAt DateTime @default(now())
+
+  order P2POrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
 }

@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { getExchange } from "@/lib/exchange";
 import { sessionUserId } from "@/lib/auth";
+import { actP2POrder } from "@/lib/p2p";
 
 const ActionSchema = z.object({
   action: z.enum(["MARK_PAID", "RELEASE", "CANCEL", "DISPUTE"]),
@@ -20,7 +20,7 @@ export async function POST(
     return Response.json({ error: "Invalid action" }, { status: 400 });
   }
   try {
-    const order = await getExchange().actP2POrder(userId, id, parsed.data.action);
+    const order = await actP2POrder(userId, id, parsed.data.action);
     return Response.json(order);
   } catch (e) {
     return Response.json({ error: (e as Error).message }, { status: 400 });
