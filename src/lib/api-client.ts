@@ -26,6 +26,11 @@ import type {
   Ticker,
 } from "@/lib/exchange/types";
 import type { Portfolio, LedgerActivity } from "@/lib/wallet-types";
+import type {
+  CustodyConfig,
+  DepositAddressInfo,
+  CustodyHistory,
+} from "@/lib/custody-types";
 
 async function j<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
@@ -55,6 +60,24 @@ export const api = {
     fetch("/api/transactions", { cache: "no-store" }).then((r) =>
       j<{ activity: LedgerActivity[] }>(r),
     ),
+
+  custodyConfig: () =>
+    fetch("/api/custody/config", { cache: "no-store" }).then((r) => j<CustodyConfig>(r)),
+
+  custodyAddress: () =>
+    fetch("/api/custody/address", { cache: "no-store" }).then((r) =>
+      mutate<DepositAddressInfo>(r, "Could not load your deposit address"),
+    ),
+
+  custodyHistory: () =>
+    fetch("/api/custody/history", { cache: "no-store" }).then((r) => j<CustodyHistory>(r)),
+
+  custodyWithdraw: (symbol: string, amount: number, toAddress: string) =>
+    fetch("/api/custody/withdraw", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ symbol, amount, toAddress }),
+    }).then((r) => mutate<{ id: string; status: string }>(r, "Withdrawal failed")),
 
   markets: () =>
     fetch("/api/markets", { cache: "no-store" }).then((r) =>

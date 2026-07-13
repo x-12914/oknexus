@@ -35,6 +35,10 @@ model User {
   ramps         RampTx[]
   otcTrades     OtcTrade[]
   p2pOrders     P2POrder[]
+
+  depositAddresses DepositAddress[]
+  deposits         Deposit[]
+  withdrawals      Withdrawal[]
 }
 
 enum UserRole {
@@ -342,4 +346,86 @@ model P2PMessage {
   order P2POrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId, createdAt])
+}
+
+// ---------- Custody (on-chain deposits & withdrawals) ----------
+//
+// Per-user deposit addresses are derived from one HD seed (BIP-44). A background
+// scanner credits the ledger on confirmed deposits; withdrawals lock funds, sign
+// & broadcast from a hot wallet, then settle on confirmation. Testnet today
+// (Sepolia/testnet endpoints); flips to mainnet by config.
+
+model ChainState {
+  chain            String   @id // "ethereum-sepolia"
+  lastScannedBlock BigInt   @default(0)
+  nextIndex        Int      @default(1) // HD address index; 0 is the hot wallet
+  updatedAt        DateTime @updatedAt
+}
+
+model DepositAddress {
+  id              String   @id @default(cuid())
+  userId          String
+  chain           String
+  address         String
+  derivationIndex Int
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chain])
+  @@unique([chain, derivationIndex])
+  @@index([address])
+}
+
+enum DepositStatus {
+  PENDING // seen on-chain, awaiting confirmations
+  CREDITED // confirmed and credited to the ledger
+}
+
+model Deposit {
+  id            String        @id @default(cuid())
+  userId        String
+  chain         String
+  symbol        String
+  amount        Decimal       @db.Decimal(30, 10)
+  address       String
+  txHash        String
+  blockNumber   BigInt
+  confirmations Int           @default(0)
+  status        DepositStatus @default(PENDING)
+  creditedAt    DateTime?
+  createdAt     DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chain, txHash, symbol])
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+enum WithdrawalStatus {
+  REQUESTED // funds locked, awaiting broadcast
+  BROADCAST // signed & sent, awaiting confirmations
+  CONFIRMED // on-chain confirmed, funds settled out
+  FAILED // rejected/failed; funds returned to available
+}
+
+model Withdrawal {
+  id        String           @id @default(cuid())
+  userId    String
+  chain     String
+  symbol    String
+  amount    Decimal          @db.Decimal(30, 10)
+  fee       Decimal          @default(0) @db.Decimal(30, 10)
+  toAddress String
+  txHash    String?
+  status    WithdrawalStatus @default(REQUESTED)
+  error     String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status])
 }

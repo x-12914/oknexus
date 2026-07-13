@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2, ArrowLeftRight, CreditCard, Lock } from "lucide-react";
+import { Loader2, ArrowLeftRight, CreditCard, Lock, Download, Upload } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { usePolling } from "@/hooks/usePolling";
 import { cn } from "@/lib/utils";
@@ -36,7 +36,19 @@ export function WalletView() {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-xl font-semibold">Wallet</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          <Link
+            href="/deposit"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm hover:bg-[var(--color-surface-2)]"
+          >
+            <Download className="h-4 w-4" /> Deposit
+          </Link>
+          <Link
+            href="/withdraw"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm hover:bg-[var(--color-surface-2)]"
+          >
+            <Upload className="h-4 w-4" /> Withdraw
+          </Link>
           <Link
             href="/buy"
             className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm hover:bg-[var(--color-surface-2)]"
