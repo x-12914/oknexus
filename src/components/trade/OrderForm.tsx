@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api-client";
 import { usePolling } from "@/hooks/usePolling";
 import { cn, formatPrice } from "@/lib/utils";
@@ -22,10 +22,21 @@ export function OrderForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [balances, setBalances] = useState<Record<string, number> | null>(null);
 
   const { data: ticker } = usePolling(() => api.ticker(pair), 2000, [pair]);
   const symbol = pair.replace("-", "/");
   const [base, quote] = symbol.split("/");
+
+  const loadBalances = useCallback(() => {
+    api
+      .wallet()
+      .then((p) => setBalances(Object.fromEntries(p.items.map((i) => [i.symbol, i.balance]))))
+      .catch(() => setBalances(null));
+  }, []);
+  useEffect(() => {
+    loadBalances();
+  }, [loadBalances]);
 
   const priceDecimals = ticker && ticker.last < 1 ? 5 : 2;
 
@@ -75,6 +86,7 @@ export function OrderForm({
       );
       setQuantity("");
       onPlaced();
+      loadBalances();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -158,11 +170,18 @@ export function OrderForm({
               type="button"
               onClick={() => {
                 if (!ticker) return;
-                const budget = 1000;
                 const px = type === "LIMIT" ? Number(price) || ticker.last : ticker.last;
-                if (px > 0) {
-                  setQuantity(((budget * (p / 100)) / px).toFixed(6));
-                }
+                if (!(px > 0)) return;
+                const frac = p / 100;
+                // BUY spends the quote balance; SELL sells the base balance.
+                // Falls back to a $1,000 preview when signed out (balances unknown).
+                const qty =
+                  balances == null
+                    ? (1000 * frac) / px
+                    : side === "BUY"
+                      ? ((balances[quote] ?? 0) * frac) / px
+                      : (balances[base] ?? 0) * frac;
+                setQuantity(qty.toFixed(6));
               }}
               className="text-xs py-1 rounded border border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)]"
             >

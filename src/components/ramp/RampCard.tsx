@@ -14,17 +14,6 @@ import type {
 import { AssetSelect } from "@/components/swap/AssetSelect";
 import { PillDropdown, FiatBadge, type PillOption } from "./PillDropdown";
 
-// Demo crypto balances for the SELL (off-ramp) side until wallets are wired.
-const DEMO_BALANCES: Record<string, number> = {
-  USDT: 10000,
-  BTC: 0.15,
-  ETH: 2.5,
-  SOL: 40,
-  BNB: 5,
-  XRP: 5000,
-  ADA: 8000,
-};
-
 const BUY_CHIPS = [50, 100, 250, 500];
 
 function smartQty(v: number): string {
@@ -49,6 +38,8 @@ export function RampCard() {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [executing, setExecuting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  // Real wallet balances (null = unknown/signed out — don't block the SELL guard on it).
+  const [balances, setBalances] = useState<Record<string, number> | null>(null);
 
   useEffect(() => {
     api.rampConfig().then((r) => {
@@ -58,12 +49,23 @@ export function RampCard() {
     api.swapAssets().then((r) => setAssets(r.assets)).catch(() => {});
   }, []);
 
+  const loadBalances = useCallback(() => {
+    api
+      .wallet()
+      .then((p) => setBalances(Object.fromEntries(p.items.map((i) => [i.symbol, i.balance]))))
+      .catch(() => setBalances(null));
+  }, []);
+  useEffect(() => {
+    loadBalances();
+  }, [loadBalances]);
+
   const fiat = currencies.find((c) => c.code === fiatCode);
   const availableMethods = methods.filter((m) => m.sides.includes(side));
   const method = methods.find((m) => m.id === methodId);
   const amountNum = Number(amount);
-  const cryptoBalance = DEMO_BALANCES[cryptoSymbol] ?? 0;
-  const sellExceedsBalance = side === "SELL" && amountNum > cryptoBalance;
+  const cryptoBalance = balances?.[cryptoSymbol] ?? 0;
+  const sellExceedsBalance =
+    side === "SELL" && balances != null && amountNum > cryptoBalance;
 
   const fmtFiat = useCallback(
     (v: number) =>
@@ -153,6 +155,7 @@ export function RampCard() {
       );
       setAmount("");
       setQuote(null);
+      loadBalances();
     } catch (e) {
       const msg = (e as Error).message;
       setError(msg);
@@ -372,7 +375,7 @@ export function RampCard() {
       </button>
 
       <p className="mt-3 text-center text-[10px] text-[var(--color-muted)]">
-        Simulated ramp · no real funds move · demo balances
+        Crypto settles to your Nexus wallet · fiat rail is simulated (demo)
       </p>
     </div>
   );
