@@ -348,11 +348,13 @@ export async function actP2POrder(
           throw new Error("Escrow can only be released after payment is marked");
         requireRole("seller");
         status = "COMPLETED";
+        // Settle against the actual parties (o.userId = taker), NOT the actor —
+        // either party may trigger the release.
         if (o.takerRole === "seller") {
-          await settleLocked(tx, userId, o.asset, amount, ref); // taker's escrow leaves
+          await settleLocked(tx, o.userId, o.asset, amount, ref); // taker's escrow leaves
           if (o.advertiserId) await credit(tx, o.advertiserId, o.asset, amount, ref); // advertiser receives
         } else {
-          await credit(tx, userId, o.asset, amount, ref); // taker receives
+          await credit(tx, o.userId, o.asset, amount, ref); // taker receives
           if (o.advertiserId) await settleLocked(tx, o.advertiserId, o.asset, amount, ref); // advertiser's escrow leaves
         }
         sysText = `${o.sellerName} released ${fmt(amount)} ${o.asset} from escrow. Trade complete.`;
@@ -362,7 +364,7 @@ export async function actP2POrder(
           throw new Error("Only unpaid orders can be cancelled");
         status = "CANCELLED";
         if (o.takerRole === "seller" && o.escrowLocked) {
-          await unlock(tx, userId, o.asset, amount, ref); // return taker's escrow
+          await unlock(tx, o.userId, o.asset, amount, ref); // return taker's escrow
         } else if (o.takerRole === "buyer") {
           const ad = await tx.p2PAd.findUnique({ where: { id: o.adId } });
           if (o.advertiserId && ad && !ad.active) {
