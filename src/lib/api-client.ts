@@ -20,6 +20,8 @@ import type {
   OtcQuoteInput,
   OtcResult,
   P2PAd,
+  P2PMyAd,
+  CreateP2PAdInput,
   P2PPaymentMethod,
   P2POrder,
   P2POrderAction,
@@ -210,6 +212,21 @@ export const api = {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ adId, fiatAmount, paymentMethod }),
     }).then((r) => mutate<P2POrder>(r, "Could not open trade")),
+
+  p2pCreateAd: (input: CreateP2PAdInput) =>
+    fetch("/api/p2p/ads", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    }).then((r) => mutate<P2PAd>(r, "Could not post ad")),
+
+  p2pMyAds: () =>
+    fetch("/api/p2p/ads/mine", { cache: "no-store" }).then((r) => j<{ ads: P2PMyAd[] }>(r)),
+
+  p2pDeleteAd: (id: string) =>
+    fetch(`/api/p2p/ads/${id}`, { method: "DELETE" }).then((r) =>
+      mutate<{ ok: true }>(r, "Could not remove ad"),
+    ),
 
   p2pOrders: () =>
     fetch("/api/p2p/orders", { cache: "no-store" }).then((r) =>

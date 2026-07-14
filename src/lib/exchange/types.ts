@@ -260,6 +260,22 @@ export interface P2PAdFilter {
   paymentMethod?: string;
 }
 
+export interface P2PMyAd extends P2PAd {
+  active: boolean;
+}
+
+export interface CreateP2PAdInput {
+  side: OrderSide; // advertiser's action: SELL = you sell crypto; BUY = you buy
+  asset: string;
+  fiat: string;
+  price: number;
+  available: number;
+  minLimit: number;
+  maxLimit: number;
+  paymentMethods: string[];
+  terms?: string;
+}
+
 export type P2POrderStatus =
   | "PENDING_PAYMENT" // escrow locked; buyer must pay fiat
   | "PAID" // buyer marked paid; seller must release

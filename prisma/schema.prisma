@@ -35,6 +35,7 @@ model User {
   ramps         RampTx[]
   otcTrades     OtcTrade[]
   p2pOrders     P2POrder[]
+  p2pAds        P2PAd[]
 
   depositAddresses DepositAddress[]
   deposits         Deposit[]
@@ -311,6 +312,7 @@ enum P2POrderStatus {
 model P2POrder {
   id                   String         @id @default(cuid())
   userId               String
+  advertiserId         String? // the ad's advertiser (another real user); null for seeded mock ads
   adId                 String
   asset                String
   fiat                 String
@@ -346,6 +348,29 @@ model P2PMessage {
   order P2POrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId, createdAt])
+}
+
+model P2PAd {
+  id             String    @id @default(cuid())
+  advertiserId   String? // null = seeded mock ad
+  side           OrderSide // advertiser's action: SELL = they sell crypto; BUY = they buy
+  asset          String
+  fiat           String
+  price          Decimal   @db.Decimal(30, 10)
+  available      Decimal   @db.Decimal(30, 10) // asset units still open (locked for SELL ads)
+  minLimit       Decimal   @db.Decimal(30, 10) // fiat
+  maxLimit       Decimal   @db.Decimal(30, 10) // fiat
+  paymentMethods String[]
+  terms          String?
+  merchantName   String
+  merchant       Json // P2PMerchant snapshot for display
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+
+  advertiser User? @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+
+  @@index([side, asset, fiat, active])
+  @@index([advertiserId])
 }
 
 // ---------- Custody (on-chain deposits & withdrawals) ----------

@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Loader2, ScrollText } from "lucide-react";
+import { Loader2, ScrollText, Megaphone, Plus } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import type { OrderSide, P2PAd, P2PPaymentMethod } from "@/lib/exchange/types";
 import { MerchantBadge } from "./MerchantBadge";
 import { OpenTradeDialog } from "./OpenTradeDialog";
+import { PostAdDialog } from "./PostAdDialog";
 
 const ASSETS = ["USDT", "BTC", "ETH"];
 const FIATS = ["USD", "NGN", "EUR"];
@@ -24,6 +25,8 @@ export function P2PMarketplace() {
   const [methods, setMethods] = useState<P2PPaymentMethod[]>([]);
   const [ads, setAds] = useState<P2PAd[] | null>(null);
   const [activeAd, setActiveAd] = useState<P2PAd | null>(null);
+  const [showPost, setShowPost] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     api.p2pPaymentMethods().then((r) => setMethods(r.methods)).catch(() => {});
@@ -47,7 +50,7 @@ export function P2PMarketplace() {
     return () => {
       cancelled = true;
     };
-  }, [tab, asset, fiat, method]);
+  }, [tab, asset, fiat, method, refreshKey]);
 
   const takerBuys = tab === "BUY";
 
@@ -60,12 +63,27 @@ export function P2PMarketplace() {
             Trade directly with other users. Every trade is escrow-protected.
           </p>
         </div>
-        <Link
-          href="/p2p/orders"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm hover:bg-[var(--color-surface-2)]"
-        >
-          <ScrollText className="h-4 w-4" /> My Trades
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/p2p/orders"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm hover:bg-[var(--color-surface-2)]"
+          >
+            <ScrollText className="h-4 w-4" /> My Trades
+          </Link>
+          <Link
+            href="/p2p/my-ads"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm hover:bg-[var(--color-surface-2)]"
+          >
+            <Megaphone className="h-4 w-4" /> My Ads
+          </Link>
+          <button
+            type="button"
+            onClick={() => setShowPost(true)}
+            className="btn-brand inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium"
+          >
+            <Plus className="h-4 w-4" /> Post ad
+          </button>
+        </div>
       </div>
 
       {/* Buy / Sell tabs */}
@@ -185,6 +203,13 @@ export function P2PMarketplace() {
           ad={activeAd}
           methodName={methodName}
           onClose={() => setActiveAd(null)}
+        />
+      ) : null}
+
+      {showPost ? (
+        <PostAdDialog
+          onClose={() => setShowPost(false)}
+          onPosted={() => setRefreshKey((k) => k + 1)}
         />
       ) : null}
     </div>
