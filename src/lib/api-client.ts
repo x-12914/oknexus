@@ -33,6 +33,15 @@ import type {
   DepositAddressInfo,
   CustodyHistory,
 } from "@/lib/custody-types";
+import type {
+  AdminOverview,
+  AdminUser,
+  AdminDispute,
+  AdminLedgerRow,
+  AdminAd,
+  AdminActionBody,
+  KycInfo,
+} from "@/lib/admin-types";
 
 async function j<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
@@ -249,4 +258,39 @@ export const api = {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ text }),
     }).then((r) => mutate<P2POrder>(r, "Could not send")),
+
+  // ---- KYC ----
+  kyc: () => fetch("/api/kyc", { cache: "no-store" }).then((r) => mutate<KycInfo>(r, "Could not load")),
+
+  kycSubmit: (input: { legalName: string; country: string; idNumber: string }) =>
+    fetch("/api/kyc", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    }).then((r) => mutate<{ ok: true }>(r, "Submission failed")),
+
+  // ---- Admin ----
+  adminOverview: () =>
+    fetch("/api/admin/data?view=overview", { cache: "no-store" }).then((r) => j<AdminOverview>(r)),
+  adminUsers: () =>
+    fetch("/api/admin/data?view=users", { cache: "no-store" }).then((r) =>
+      j<{ users: AdminUser[] }>(r),
+    ),
+  adminDisputes: () =>
+    fetch("/api/admin/data?view=disputes", { cache: "no-store" }).then((r) =>
+      j<{ disputes: AdminDispute[] }>(r),
+    ),
+  adminLedger: () =>
+    fetch("/api/admin/data?view=ledger", { cache: "no-store" }).then((r) =>
+      j<{ rows: AdminLedgerRow[] }>(r),
+    ),
+  adminAds: () =>
+    fetch("/api/admin/data?view=ads", { cache: "no-store" }).then((r) => j<{ ads: AdminAd[] }>(r)),
+
+  adminAction: (body: AdminActionBody) =>
+    fetch("/api/admin/action", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }).then((r) => mutate<{ ok: true }>(r, "Action failed")),
 };

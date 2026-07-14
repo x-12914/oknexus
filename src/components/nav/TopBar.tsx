@@ -4,7 +4,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { UserMenu } from "./UserMenu";
 import { WalletBadge } from "./WalletBadge";
 
-export function TopBar({ userEmail }: { userEmail?: string }) {
+export function TopBar({ userEmail, isAdmin }: { userEmail?: string; isAdmin?: boolean }) {
   return (
     <header className="h-14 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--topbar-bg)] backdrop-blur-xl px-4">
       <div className="flex items-center gap-2 text-sm text-[var(--color-muted)]">
@@ -27,7 +27,7 @@ export function TopBar({ userEmail }: { userEmail?: string }) {
             >
               <Bell className="h-4 w-4" />
             </button>
-            <UserMenu email={userEmail} />
+            <UserMenu email={userEmail} isAdmin={isAdmin} />
           </>
         ) : (
           <>

@@ -10,6 +10,19 @@ export async function sessionUserId(): Promise<string | null> {
   return session?.user?.id ?? null;
 }
 
+/** The signed-in user's id + role, or null. */
+export async function sessionUser(): Promise<{ id: string; role: UserRole } | null> {
+  const session = await auth();
+  if (!session?.user?.id) return null;
+  return { id: session.user.id, role: (session.user.role ?? "USER") as UserRole };
+}
+
+/** The signed-in user's id if they're an admin, else null. */
+export async function requireAdmin(): Promise<string | null> {
+  const u = await sessionUser();
+  return u && u.role === "ADMIN" ? u.id : null;
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // Behind the nginx reverse proxy in production.
   trustHost: true,
@@ -25,6 +38,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user?.passwordHash) return null;
+        if (user.suspended) throw new Error("This account has been suspended.");
 
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) return null;

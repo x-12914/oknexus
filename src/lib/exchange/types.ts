@@ -304,7 +304,9 @@ export interface P2POrder {
   fiatAmount: number; // fiat the buyer pays
   paymentMethod: string;
   status: P2POrderStatus;
-  takerRole: "buyer" | "seller"; // which side the demo user is on
+  takerRole: "buyer" | "seller"; // which side the taker is on
+  viewerRole?: "buyer" | "seller"; // the requesting user's role in this order
+  twoParty?: boolean; // true when the counterparty is a real user (not a mock merchant)
   buyerName: string;
   sellerName: string;
   merchant: P2PMerchant;

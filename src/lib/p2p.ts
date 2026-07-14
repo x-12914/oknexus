@@ -44,7 +44,15 @@ function toAd(a: DbAd): P2PAd {
   };
 }
 
-function toP2POrder(o: DbP2POrder): P2POrder {
+function toP2POrder(o: DbP2POrder, viewerId: string): P2POrder {
+  const viewerRole: "buyer" | "seller" | undefined =
+    o.userId === viewerId
+      ? (o.takerRole as "buyer" | "seller")
+      : o.advertiserId === viewerId
+        ? o.takerRole === "buyer"
+          ? "seller"
+          : "buyer"
+        : undefined;
   return {
     id: o.id,
     adId: o.adId,
@@ -56,6 +64,8 @@ function toP2POrder(o: DbP2POrder): P2POrder {
     paymentMethod: o.paymentMethod,
     status: o.status,
     takerRole: o.takerRole as "buyer" | "seller",
+    viewerRole,
+    twoParty: o.advertiserId != null,
     buyerName: o.buyerName,
     sellerName: o.sellerName,
     merchant: o.merchant as unknown as P2PMerchant,
@@ -219,8 +229,15 @@ export async function createP2POrder(input: CreateP2POrderInput): Promise<P2POrd
 
     const takerRole: "buyer" | "seller" = ad.side === "SELL" ? "buyer" : "seller";
     const merchant = ad.merchant as unknown as P2PMerchant;
-    const buyerName = takerRole === "buyer" ? "You" : merchant.name;
-    const sellerName = takerRole === "seller" ? "You" : merchant.name;
+    // Store real display names so both parties (taker + a real advertiser) see
+    // correct labels; the UI substitutes "You" via viewerRole.
+    const taker = await tx.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true },
+    });
+    const takerName = taker?.name || taker?.email?.split("@")[0] || "Taker";
+    const buyerName = takerRole === "buyer" ? takerName : merchant.name;
+    const sellerName = takerRole === "seller" ? takerName : merchant.name;
 
     if (takerRole === "seller") {
       // Taker is selling → escrow the taker's crypto now.
@@ -266,25 +283,28 @@ export async function createP2POrder(input: CreateP2POrderInput): Promise<P2POrd
       },
       include: { messages: true },
     });
-    return toP2POrder(created);
+    return toP2POrder(created, userId);
   });
 }
 
+// A user is party to an order as either the taker or the ad's advertiser.
+const partyTo = (userId: string) => ({ OR: [{ userId }, { advertiserId: userId }] });
+
 export async function getP2POrder(userId: string, orderId: string): Promise<P2POrder | null> {
   const o = await prisma.p2POrder.findFirst({
-    where: { id: orderId, userId },
+    where: { id: orderId, ...partyTo(userId) },
     include: { messages: true },
   });
-  return o ? toP2POrder(o) : null;
+  return o ? toP2POrder(o, userId) : null;
 }
 
 export async function listP2POrders(userId: string): Promise<P2POrder[]> {
   const orders = await prisma.p2POrder.findMany({
-    where: { userId },
+    where: partyTo(userId),
     include: { messages: true },
     orderBy: { createdAt: "desc" },
   });
-  return orders.map(toP2POrder);
+  return orders.map((o) => toP2POrder(o, userId));
 }
 
 export async function actP2POrder(
@@ -293,10 +313,24 @@ export async function actP2POrder(
   action: P2POrderAction,
 ): Promise<P2POrder> {
   return withLedger(async (tx) => {
-    const o = await tx.p2POrder.findFirst({ where: { id: orderId, userId } });
+    const o = await tx.p2POrder.findFirst({ where: { id: orderId, ...partyTo(userId) } });
     if (!o) throw new Error("Order not found");
     const amount = Number(o.assetAmount);
     const ref = { type: LedgerType.P2P, refId: o.id, memo: `P2P ${action} ${o.asset}` };
+
+    // The actor's role in this order. Real two-party trades enforce buyer-marks-
+    // paid / seller-releases; mock ads (no advertiser) let the taker drive both
+    // sides via the demo simulation control.
+    const isAdvertiser = o.advertiserId === userId && o.userId !== userId;
+    const actorRole: "buyer" | "seller" = isAdvertiser
+      ? o.takerRole === "buyer"
+        ? "seller"
+        : "buyer"
+      : (o.takerRole as "buyer" | "seller");
+    const enforced = o.advertiserId != null;
+    const requireRole = (role: "buyer" | "seller") => {
+      if (enforced && actorRole !== role) throw new Error(`Only the ${role} can do this.`);
+    };
 
     let status: P2POrderStatus;
     let sysText: string;
@@ -305,12 +339,14 @@ export async function actP2POrder(
       case "MARK_PAID":
         if (o.status !== "PENDING_PAYMENT")
           throw new Error("Can only mark paid while awaiting payment");
+        requireRole("buyer");
         status = "PAID";
         sysText = `${o.buyerName} marked the payment as sent. Awaiting ${o.sellerName} to release escrow.`;
         break;
       case "RELEASE":
         if (o.status !== "PAID")
           throw new Error("Escrow can only be released after payment is marked");
+        requireRole("seller");
         status = "COMPLETED";
         if (o.takerRole === "seller") {
           await settleLocked(tx, userId, o.asset, amount, ref); // taker's escrow leaves
@@ -359,7 +395,7 @@ export async function actP2POrder(
       },
       include: { messages: true },
     });
-    return toP2POrder(updated);
+    return toP2POrder(updated, userId);
   });
 }
 
@@ -368,16 +404,22 @@ export async function sendP2PMessage(
   orderId: string,
   text: string,
 ): Promise<P2POrder> {
-  const o = await prisma.p2POrder.findFirst({ where: { id: orderId, userId } });
+  const o = await prisma.p2POrder.findFirst({ where: { id: orderId, ...partyTo(userId) } });
   if (!o) throw new Error("Order not found");
   const trimmed = text.trim();
   if (!trimmed) throw new Error("Message is empty");
+  const isAdvertiser = o.advertiserId === userId && o.userId !== userId;
+  const senderRole = isAdvertiser
+    ? o.takerRole === "buyer"
+      ? "seller"
+      : "buyer"
+    : o.takerRole;
   await prisma.p2PMessage.create({
-    data: { orderId: o.id, sender: o.takerRole, text: trimmed.slice(0, 500) },
+    data: { orderId: o.id, sender: senderRole, text: trimmed.slice(0, 500) },
   });
   const full = await prisma.p2POrder.findUniqueOrThrow({
     where: { id: o.id },
     include: { messages: true },
   });
-  return toP2POrder(full);
+  return toP2POrder(full, userId);
 }

@@ -11,7 +11,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex h-screen w-full overflow-hidden">
       <SideNav />
       <div className="flex-1 flex flex-col min-w-0">
-        <TopBar userEmail={session?.user?.email ?? undefined} />
+        <TopBar
+          userEmail={session?.user?.email ?? undefined}
+          isAdmin={session?.user?.role === "ADMIN"}
+        />
         <main className="flex-1 min-h-0 overflow-hidden">{children}</main>
       </div>
     </div>

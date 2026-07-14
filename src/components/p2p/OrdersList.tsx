@@ -45,7 +45,8 @@ export function OrdersList() {
         <div className="rounded-xl border border-[var(--color-border)] overflow-hidden">
           {orders.map((o) => {
             const s = STATUS_LABEL[o.status];
-            const takerBuys = o.takerRole === "buyer";
+            const iAmBuyer = (o.viewerRole ?? o.takerRole) === "buyer";
+            const counterparty = iAmBuyer ? o.sellerName : o.buyerName;
             return (
               <Link
                 key={o.id}
@@ -54,14 +55,14 @@ export function OrdersList() {
               >
                 <div className="min-w-0">
                   <div className="font-medium">
-                    <span className={takerBuys ? "text-[var(--color-up)]" : "text-[var(--color-down)]"}>
-                      {takerBuys ? "Buy" : "Sell"}
+                    <span className={iAmBuyer ? "text-[var(--color-up)]" : "text-[var(--color-down)]"}>
+                      {iAmBuyer ? "Buy" : "Sell"}
                     </span>{" "}
                     {o.assetAmount.toLocaleString(undefined, { maximumFractionDigits: 8 })}{" "}
                     {o.asset}
                   </div>
                   <div className="text-xs text-[var(--color-muted)]">
-                    {o.fiatAmount.toLocaleString()} {o.fiat} · with {o.merchant.name}
+                    {o.fiatAmount.toLocaleString()} {o.fiat} · with {counterparty}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">

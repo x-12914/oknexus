@@ -58,14 +58,16 @@ export function OrderView({ orderId }: { orderId: string }) {
 
   const step = stepIndex(order.status);
   const terminalBad = order.status === "CANCELLED" || order.status === "DISPUTED";
-  const takerBuys = order.takerRole === "buyer";
-  const counterparty = takerBuys ? order.sellerName : order.buyerName;
+  const iAmBuyer = (order.viewerRole ?? order.takerRole) === "buyer";
+  const counterparty = iAmBuyer ? order.sellerName : order.buyerName;
 
-  // The next action the OTHER party must take (exposed as a demo control).
-  const counterpartyAction: { action: P2POrderAction; label: string } | null =
-    order.status === "PAID" && takerBuys
+  // For MOCK ads the taker drives the other side via this demo control. Real
+  // two-party trades omit it — each user acts their own role.
+  const counterpartyAction: { action: P2POrderAction; label: string } | null = order.twoParty
+    ? null
+    : order.status === "PAID" && iAmBuyer
       ? { action: "RELEASE", label: `Simulate ${order.sellerName} releasing escrow` }
-      : order.status === "PENDING_PAYMENT" && !takerBuys
+      : order.status === "PENDING_PAYMENT" && !iAmBuyer
         ? { action: "MARK_PAID", label: `Simulate ${order.buyerName} marking paid` }
         : null;
 
@@ -84,7 +86,7 @@ export function OrderView({ orderId }: { orderId: string }) {
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
             <div className="flex items-center justify-between">
               <h1 className="text-lg font-semibold">
-                {takerBuys ? "Buy" : "Sell"} {fmtAsset(order.assetAmount)} {order.asset}
+                {iAmBuyer ? "Buy" : "Sell"} {fmtAsset(order.assetAmount)} {order.asset}
               </h1>
               <StatusPill status={order.status} />
             </div>
@@ -136,10 +138,10 @@ export function OrderView({ orderId }: { orderId: string }) {
 
           {/* Order details */}
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 space-y-2 text-sm">
-            <Row k={takerBuys ? "You pay" : "You receive"}>
+            <Row k={iAmBuyer ? "You pay" : "You receive"}>
               {fmtFiat(order.fiatAmount)} {order.fiat}
             </Row>
-            <Row k={takerBuys ? "You receive" : "You send"}>
+            <Row k={iAmBuyer ? "You receive" : "You send"}>
               {fmtAsset(order.assetAmount)} {order.asset}
             </Row>
             <Row k="Price">
@@ -281,7 +283,7 @@ function ActionArea({
   busy: string | null;
   onAct: (a: P2POrderAction, key: string) => void;
 }) {
-  const takerBuys = order.takerRole === "buyer";
+  const iAmBuyer = (order.viewerRole ?? order.takerRole) === "buyer";
 
   if (order.status === "COMPLETED") {
     return (
@@ -309,7 +311,7 @@ function ActionArea({
   if (order.status === "PENDING_PAYMENT") {
     return (
       <div className="space-y-2">
-        {takerBuys ? (
+        {iAmBuyer ? (
           <p className="text-sm text-[var(--color-muted)]">
             Send{" "}
             <span className="text-[var(--color-foreground)] font-medium">
@@ -324,7 +326,7 @@ function ActionArea({
           </p>
         )}
         <div className="flex gap-2">
-          {takerBuys ? (
+          {iAmBuyer ? (
             <ActionButton
               action="MARK_PAID"
               label="Mark as paid"
@@ -348,7 +350,7 @@ function ActionArea({
   // PAID
   return (
     <div className="space-y-2">
-      {takerBuys ? (
+      {iAmBuyer ? (
         <p className="text-sm text-[var(--color-muted)]">
           Payment marked as sent. Waiting for {order.sellerName} to confirm receipt and release
           escrow.
@@ -363,7 +365,7 @@ function ActionArea({
         </p>
       )}
       <div className="flex gap-2">
-        {!takerBuys ? (
+        {!iAmBuyer ? (
           <ActionButton
             action="RELEASE"
             label="Release escrow"
@@ -423,7 +425,7 @@ function ChatPanel({ order, onSent }: { order: P2POrder; onSent: () => void }) {
               </div>
             );
           }
-          const mine = m.sender === order.takerRole;
+          const mine = m.sender === (order.viewerRole ?? order.takerRole);
           return (
             <div key={m.id} className={cn("flex", mine ? "justify-end" : "justify-start")}>
               <div
