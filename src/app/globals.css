@@ -130,3 +130,15 @@ body {
 .scrollbar-thin::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* ---- Landing (Exodus-style dark) ---- */
+.spectrum-text {
+  background-image: linear-gradient(100deg, #5b8bff, #9b6bff, #e05be0, #ff6aa5);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.spectrum-bg {
+  background-image: linear-gradient(100deg, #4d7cff, #8b5cf6, #d648e6, #ff5c9d);
+  color: #fff;
+}
