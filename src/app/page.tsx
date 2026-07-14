@@ -14,13 +14,13 @@ import {
   BadgeCheck,
   Radio,
   Globe2,
-  Sparkles,
   Check,
 } from "lucide-react";
 import { LandingHeader } from "@/components/landing/LandingHeader";
 import { LiveMarkets } from "@/components/landing/LiveMarkets";
 import { FaqAccordion } from "@/components/landing/FaqAccordion";
 import { NewsletterForm } from "@/components/landing/NewsletterForm";
+import { Reveal } from "@/components/landing/Reveal";
 import { Logo } from "@/components/brand/Logo";
 import { AssetCoin } from "@/components/swap/AssetSelect";
 
@@ -99,26 +99,33 @@ export default function LandingPage() {
       {/* Ambient spectrum glow */}
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[900px]">
         <div className="absolute left-1/2 top-[-160px] h-[520px] w-[820px] -translate-x-1/2 rounded-full blur-3xl" style={{ background: "radial-gradient(50% 50% at 50% 50%, rgba(124,92,246,0.30), transparent 70%)" }} />
-        <div className="absolute left-[12%] top-[40px] h-[380px] w-[380px] rounded-full blur-3xl" style={{ background: "radial-gradient(50% 50% at 50% 50%, rgba(77,124,255,0.22), transparent 70%)" }} />
-        <div className="absolute right-[10%] top-[10px] h-[420px] w-[420px] rounded-full blur-3xl" style={{ background: "radial-gradient(50% 50% at 50% 50%, rgba(224,91,224,0.20), transparent 70%)" }} />
+        <div className="lp-float absolute left-[12%] top-[40px] h-[380px] w-[380px] rounded-full blur-3xl" style={{ background: "radial-gradient(50% 50% at 50% 50%, rgba(77,124,255,0.22), transparent 70%)" }} />
+        <div className="lp-float2 absolute right-[10%] top-[10px] h-[420px] w-[420px] rounded-full blur-3xl" style={{ background: "radial-gradient(50% 50% at 50% 50%, rgba(224,91,224,0.20), transparent 70%)" }} />
       </div>
 
       <LandingHeader />
 
       <main>
         {/* Hero */}
-        <section className="relative mx-auto max-w-6xl px-4 pb-8 pt-16 text-center md:pt-24">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/5 px-4 py-1.5 text-xs font-medium text-[var(--color-muted)] backdrop-blur">
-            <Sparkles className="h-3.5 w-3.5 text-[var(--color-accent)]" /> Now live — trade six ways in one account
-          </span>
-          <h1 className="mx-auto mt-6 max-w-4xl text-4xl font-semibold leading-[1.05] tracking-tight text-white [text-wrap:balance] sm:text-6xl md:text-7xl">
-            The exchange that connects you to the <span className="spectrum-text">future of finance</span>
+        <section className="relative mx-auto max-w-6xl px-4 pb-8 pt-28 text-center md:pt-40">
+          <h1
+            className="lp-fade-up mx-auto max-w-4xl text-4xl font-semibold leading-[1.05] tracking-tight text-white [text-wrap:balance] sm:text-6xl md:text-7xl"
+            style={{ animationDelay: "60ms" }}
+          >
+            The exchange that connects you to the{" "}
+            <span className="spectrum-text-anim">future of finance</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[var(--color-muted)]">
+          <p
+            className="lp-fade-up mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[var(--color-muted)]"
+            style={{ animationDelay: "170ms" }}
+          >
             Buy, sell, swap, and trade digital assets on one fast, secure platform — with live market
             data, escrow-protected P2P, and real on-chain custody.
           </p>
-          <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+          <div
+            className="lp-fade-up mt-9 flex flex-wrap items-center justify-center gap-3"
+            style={{ animationDelay: "280ms" }}
+          >
             <Link
               href="/register"
               className="spectrum-bg inline-flex items-center gap-1.5 rounded-full px-6 py-3.5 text-sm font-semibold"
@@ -132,7 +139,10 @@ export default function LandingPage() {
               Explore markets
             </Link>
           </div>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-[var(--color-muted)]">
+          <div
+            className="lp-fade-up mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-[var(--color-muted)]"
+            style={{ animationDelay: "390ms" }}
+          >
             <span className="inline-flex items-center gap-1.5">
               <ShieldCheck className="h-4 w-4 text-[var(--color-accent)]" /> Bank-grade security
             </span>
@@ -145,7 +155,10 @@ export default function LandingPage() {
           </div>
 
           {/* Hero product mockup */}
-          <div className="relative mx-auto mt-16 max-w-4xl">
+          <div
+            className="lp-fade-up relative mx-auto mt-16 max-w-4xl"
+            style={{ animationDelay: "520ms" }}
+          >
             <div className="glass rounded-3xl p-2.5 sm:p-3">
               <div className="grid gap-3 md:grid-cols-[1.45fr_1fr]">
                 <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/70 p-5 text-left">
@@ -282,7 +295,7 @@ export default function LandingPage() {
             {PRODUCTS.map((p) => (
               <div
                 key={p.title}
-                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 p-6"
+                className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 p-6 transition-transform duration-200 hover:-translate-y-1"
               >
                 <div className="grid h-11 w-11 place-items-center rounded-xl spectrum-bg">
                   <p.icon className="h-5 w-5 text-white" />
@@ -344,7 +357,8 @@ export default function LandingPage() {
 
         {/* Final CTA */}
         <section className="mx-auto max-w-6xl px-4 pb-24">
-          <div className="spectrum-bg relative overflow-hidden rounded-[2rem] px-6 py-16 text-center">
+          <Reveal>
+            <div className="spectrum-bg relative overflow-hidden rounded-[2rem] px-6 py-16 text-center">
             <div className="relative z-10">
               <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight text-white [text-wrap:balance] md:text-5xl">
                 Start your crypto journey with Nexus
@@ -368,6 +382,7 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
+          </Reveal>
         </section>
       </main>
 
@@ -442,8 +457,9 @@ function FeatureRow({
   flip?: boolean;
 }) {
   return (
-    <div className="grid items-center gap-10 md:grid-cols-2">
-      <div className={flip ? "md:order-2" : ""}>
+    <Reveal>
+      <div className="grid items-center gap-10 md:grid-cols-2">
+        <div className={flip ? "md:order-2" : ""}>
         <span className="text-xs font-medium uppercase tracking-widest text-[var(--color-accent)]">
           {eyebrow}
         </span>
@@ -459,7 +475,8 @@ function FeatureRow({
         </Link>
       </div>
       <div className={flip ? "md:order-1" : ""}>{visual}</div>
-    </div>
+      </div>
+    </Reveal>
   );
 }
 
