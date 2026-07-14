@@ -5,6 +5,7 @@ import { DEFAULT_CHAIN } from "@/lib/custody/registry";
 import { requestWithdrawal } from "@/lib/custody/withdrawals";
 
 const Schema = z.object({
+  chain: z.string().optional(),
   symbol: z.string().min(1),
   amount: z.number().positive(),
   toAddress: z.string().min(6),
@@ -13,7 +14,7 @@ const Schema = z.object({
 export async function POST(req: NextRequest) {
   const userId = await sessionUserId();
   if (!userId) return Response.json({ error: "Please sign in to withdraw." }, { status: 401 });
-  if (!process.env.CUSTODY_MNEMONIC || !process.env.EVM_RPC_URL) {
+  if (!process.env.CUSTODY_MNEMONIC) {
     return Response.json({ error: "Custody is not configured yet." }, { status: 503 });
   }
   const parsed = Schema.safeParse(await req.json());
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
   try {
     const w = await requestWithdrawal(
       userId,
-      DEFAULT_CHAIN,
+      parsed.data.chain || DEFAULT_CHAIN,
       parsed.data.symbol,
       parsed.data.amount,
       parsed.data.toAddress,

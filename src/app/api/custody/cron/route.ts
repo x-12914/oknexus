@@ -1,25 +1,29 @@
 import type { NextRequest } from "next/server";
-import { DEFAULT_CHAIN } from "@/lib/custody/registry";
+import { ALL_CHAINS } from "@/lib/custody/registry";
 import { scanChain } from "@/lib/custody/scan";
 import { processWithdrawals } from "@/lib/custody/withdrawals";
 
 // Driven by a system cron on the VPS (every ~minute) with a bearer secret.
-// Runs one deposit-scan + withdrawal-processing pass. Kept idempotent so a
-// missed or doubled tick is harmless.
+// Runs one deposit-scan + withdrawal-processing pass per chain. Idempotent, and
+// one chain's RPC failure never blocks the others.
 export async function POST(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!process.env.CUSTODY_MNEMONIC || !process.env.EVM_RPC_URL) {
+  if (!process.env.CUSTODY_MNEMONIC) {
     return Response.json({ ok: false, reason: "custody not configured" });
   }
 
-  try {
-    const scan = await scanChain(DEFAULT_CHAIN);
-    const withdrawals = await processWithdrawals(DEFAULT_CHAIN);
-    return Response.json({ ok: true, chain: DEFAULT_CHAIN, scan, withdrawals });
-  } catch (e) {
-    return Response.json({ ok: false, error: (e as Error).message }, { status: 500 });
+  const chains: Record<string, unknown> = {};
+  for (const chain of ALL_CHAINS) {
+    try {
+      const scan = await scanChain(chain);
+      const withdrawals = await processWithdrawals(chain);
+      chains[chain] = { scan, withdrawals };
+    } catch (e) {
+      chains[chain] = { error: (e as Error).message };
+    }
   }
+  return Response.json({ ok: true, chains });
 }

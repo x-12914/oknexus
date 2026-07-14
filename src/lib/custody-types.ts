@@ -1,11 +1,16 @@
 // Client-safe custody types (no server imports).
 
-export interface CustodyConfig {
-  chain: string;
-  nativeSymbol: string;
+export interface ChainInfo {
+  chain: string; // "ethereum-sepolia"
+  label: string; // "Ethereum Sepolia"
+  nativeSymbol: string; // "ETH"
   minConfirmations: number;
-  assets: string[]; // withdrawable/depositable symbols
+  assets: string[]; // withdrawable/depositable symbols on this chain
+}
+
+export interface CustodyConfig {
   configured: boolean; // false until the VPS has the custody env set
+  chains: ChainInfo[];
 }
 
 export interface DepositAddressInfo {
@@ -16,6 +21,7 @@ export interface DepositAddressInfo {
 
 export interface CustodyDeposit {
   id: string;
+  chain: string;
   symbol: string;
   amount: number;
   status: string; // PENDING | CREDITED
@@ -27,6 +33,7 @@ export interface CustodyDeposit {
 
 export interface CustodyWithdrawal {
   id: string;
+  chain: string;
   symbol: string;
   amount: number;
   status: string; // REQUESTED | BROADCAST | CONFIRMED | FAILED

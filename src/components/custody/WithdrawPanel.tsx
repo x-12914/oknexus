@@ -8,10 +8,6 @@ import { usePolling } from "@/hooks/usePolling";
 import { cn } from "@/lib/utils";
 import { AssetCoin } from "@/components/swap/AssetSelect";
 
-function chainLabel(chain: string): string {
-  return chain.includes("sepolia") ? "Ethereum Sepolia (testnet)" : chain;
-}
-
 const STATUS: Record<string, { label: string; cls: string }> = {
   REQUESTED: { label: "Queued", cls: "text-amber-500" },
   BROADCAST: { label: "Sending", cls: "text-[var(--color-accent)]" },
@@ -29,38 +25,38 @@ export function WithdrawPanel() {
   const { data: wallet } = usePolling(() => api.wallet(), 8000, []);
   const { data: history, refresh } = usePolling(() => api.custodyHistory(), 8000, []);
 
-  const assets = config?.assets ?? [];
+  const chains = config?.chains ?? [];
+  const [chain, setChain] = useState("");
+  if (chains.length > 0 && !chain) setChain(chains[0].chain);
+  const chainInfo = chains.find((c) => c.chain === chain);
+  const assets = chainInfo?.assets ?? [];
+  const labelOf = (ch: string) => chains.find((c) => c.chain === ch)?.label ?? ch;
+
   const [symbol, setSymbol] = useState("");
+  // Keep the selected asset valid for the chosen network.
+  if (assets.length > 0 && !assets.includes(symbol)) setSymbol(assets[0]);
+
   const [amount, setAmount] = useState("");
   const [to, setTo] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
 
-  // Default the asset once config loads (guarded derived-state set).
-  if (assets.length > 0 && !symbol) setSymbol(assets[0]);
-
   const balance = wallet?.items.find((i) => i.symbol === symbol)?.balance ?? 0;
   const amountNum = Number(amount);
   const notConfigured = config && !config.configured;
   const insufficient = amountNum > balance;
   const withdrawals = history?.withdrawals ?? [];
-  const canSubmit = amountNum > 0 && !!to && !insufficient && !submitting && !notConfigured;
+  const canSubmit = amountNum > 0 && !!to && !insufficient && !submitting && !notConfigured && !!chain;
 
   const submit = async () => {
     setError(null);
     setOk(null);
-    if (!(amountNum > 0)) {
-      setError("Enter an amount");
-      return;
-    }
-    if (!to) {
-      setError("Enter a destination address");
-      return;
-    }
+    if (!(amountNum > 0)) return setError("Enter an amount");
+    if (!to) return setError("Enter a destination address");
     setSubmitting(true);
     try {
-      await api.custodyWithdraw(symbol, amountNum, to.trim());
+      await api.custodyWithdraw(chain, symbol, amountNum, to.trim());
       setOk("Withdrawal requested — broadcasting on-chain.");
       setAmount("");
       setTo("");
@@ -80,14 +76,12 @@ export function WithdrawPanel() {
       >
         <ArrowLeft className="h-4 w-4" /> Back to wallet
       </Link>
-      <h1 className="text-xl font-semibold mb-1">Withdraw crypto</h1>
-      <p className="text-sm text-[var(--color-muted)] mb-4">
-        {config ? chainLabel(config.chain) : "…"} · sent from the exchange hot wallet
-      </p>
+      <h1 className="text-xl font-semibold mb-3">Withdraw crypto</h1>
 
       <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-500 mb-4 flex gap-2">
         <AlertTriangle className="h-4 w-4 shrink-0" />
-        Testnet only — withdrawals settle on {config ? chainLabel(config.chain) : "the test network"}.
+        Testnet only — withdrawals settle on {chainInfo?.label ?? "the selected network"}, sent from
+        the exchange hot wallet.
       </div>
 
       {notConfigured ? (
@@ -96,6 +90,28 @@ export function WithdrawPanel() {
         </div>
       ) : (
         <div className="rounded-2xl glass p-4 space-y-3">
+          {/* Network */}
+          <div>
+            <div className="text-xs text-[var(--color-muted)] mb-1.5">Network</div>
+            <div className="flex flex-wrap gap-2">
+              {chains.map((c) => (
+                <button
+                  key={c.chain}
+                  type="button"
+                  onClick={() => setChain(c.chain)}
+                  className={cn(
+                    "rounded-full border px-3 py-1.5 text-sm",
+                    c.chain === chain
+                      ? "border-[var(--color-accent)] text-[var(--color-foreground)]"
+                      : "border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-foreground)]",
+                  )}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Asset */}
           <div>
             <div className="text-xs text-[var(--color-muted)] mb-1.5">Asset</div>
@@ -153,7 +169,7 @@ export function WithdrawPanel() {
               type="text"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              placeholder="0x…"
+              placeholder={chainInfo?.chain.includes("solana") ? "Solana address…" : "0x… / address"}
               className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2.5 text-sm outline-none focus:border-[var(--color-accent)]"
             />
           </div>
@@ -210,8 +226,8 @@ export function WithdrawPanel() {
                     <div className="text-sm">
                       −{fmtQty(w.amount)} {w.symbol}
                     </div>
-                    <div className="text-xs text-[var(--color-muted)] truncate max-w-[220px]">
-                      to {w.toAddress}
+                    <div className="text-xs text-[var(--color-muted)] truncate max-w-[240px]">
+                      {labelOf(w.chain)} · to {w.toAddress}
                     </div>
                   </div>
                 </div>

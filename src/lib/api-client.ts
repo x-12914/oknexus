@@ -64,19 +64,19 @@ export const api = {
   custodyConfig: () =>
     fetch("/api/custody/config", { cache: "no-store" }).then((r) => j<CustodyConfig>(r)),
 
-  custodyAddress: () =>
-    fetch("/api/custody/address", { cache: "no-store" }).then((r) =>
-      mutate<DepositAddressInfo>(r, "Could not load your deposit address"),
-    ),
+  custodyAddress: (chain?: string) =>
+    fetch(`/api/custody/address${chain ? `?chain=${encodeURIComponent(chain)}` : ""}`, {
+      cache: "no-store",
+    }).then((r) => mutate<DepositAddressInfo>(r, "Could not load your deposit address")),
 
   custodyHistory: () =>
     fetch("/api/custody/history", { cache: "no-store" }).then((r) => j<CustodyHistory>(r)),
 
-  custodyWithdraw: (symbol: string, amount: number, toAddress: string) =>
+  custodyWithdraw: (chain: string, symbol: string, amount: number, toAddress: string) =>
     fetch("/api/custody/withdraw", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ symbol, amount, toAddress }),
+      body: JSON.stringify({ chain, symbol, amount, toAddress }),
     }).then((r) => mutate<{ id: string; status: string }>(r, "Withdrawal failed")),
 
   markets: () =>

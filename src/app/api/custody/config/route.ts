@@ -1,23 +1,17 @@
-import { DEFAULT_CHAIN, getChainAdapter } from "@/lib/custody/registry";
+import { listChains, chainLabel } from "@/lib/custody/registry";
 
 export async function GET() {
-  const configured = !!process.env.CUSTODY_MNEMONIC && !!process.env.EVM_RPC_URL;
+  const configured = !!process.env.CUSTODY_MNEMONIC;
   try {
-    const c = getChainAdapter(DEFAULT_CHAIN).config;
-    return Response.json({
+    const chains = listChains().map((c) => ({
       chain: c.chain,
+      label: chainLabel(c.chain),
       nativeSymbol: c.nativeSymbol,
       minConfirmations: c.minConfirmations,
       assets: [c.nativeSymbol, ...c.tokens.map((t) => t.symbol)],
-      configured,
-    });
+    }));
+    return Response.json({ configured, chains });
   } catch {
-    return Response.json({
-      chain: DEFAULT_CHAIN,
-      nativeSymbol: "ETH",
-      minConfirmations: 3,
-      assets: [],
-      configured: false,
-    });
+    return Response.json({ configured: false, chains: [] });
   }
 }
