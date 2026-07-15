@@ -83,6 +83,7 @@ function Dropdown({ menu }: { menu: NavMenu }) {
 export function LandingHeader() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [openSection, setOpenSection] = useState<string | null>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -106,7 +107,10 @@ export function LandingHeader() {
     };
   }, [open]);
 
-  const close = () => setOpen(false);
+  const close = () => {
+    setOpen(false);
+    setOpenSection(null);
+  };
 
   return (
     <>
@@ -182,26 +186,42 @@ export function LandingHeader() {
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-5 py-4">
-          {MENUS.map((m) => (
-            <div key={m.label} className="mb-7">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
-                {m.label}
-              </p>
-              <div className="flex flex-col">
-                {m.items.map((it) => (
-                  <Link
-                    key={it.label}
-                    href={it.href}
-                    onClick={close}
-                    className="py-3 text-lg text-white/90 transition-colors hover:text-white"
-                  >
-                    {it.label}
-                  </Link>
-                ))}
+        <nav className="flex-1 overflow-y-auto px-4 py-2">
+          {MENUS.map((m) => {
+            const sectionOpen = openSection === m.label;
+            return (
+              <div key={m.label} className="border-b border-white/5">
+                <button
+                  type="button"
+                  onClick={() => setOpenSection(sectionOpen ? null : m.label)}
+                  aria-expanded={sectionOpen}
+                  className="flex w-full items-center justify-between py-4 text-left text-lg font-medium text-white"
+                >
+                  {m.label}
+                  <ChevronDown
+                    className={cn(
+                      "h-5 w-5 text-[var(--color-muted)] transition-transform duration-200",
+                      sectionOpen && "rotate-180",
+                    )}
+                  />
+                </button>
+                {sectionOpen && (
+                  <div className="flex flex-col pb-2">
+                    {m.items.map((it) => (
+                      <Link
+                        key={it.label}
+                        href={it.href}
+                        onClick={close}
+                        className="rounded-lg py-2.5 pl-3 text-base text-white/75 transition-colors hover:text-white"
+                      >
+                        {it.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
         <div className="shrink-0 space-y-3 border-t border-white/10 px-5 py-5">
