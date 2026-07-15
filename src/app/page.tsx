@@ -95,7 +95,7 @@ const FAQ = [
 
 export default function LandingPage() {
   return (
-    <div className="relative min-h-screen overflow-hidden" style={landingStyle}>
+    <div className="relative min-h-screen overflow-x-clip" style={landingStyle}>
       {/* Ambient spectrum glow */}
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[900px]">
         <div className="absolute left-1/2 top-[-160px] h-[520px] w-[820px] -translate-x-1/2 rounded-full blur-3xl" style={{ background: "radial-gradient(50% 50% at 50% 50%, rgba(124,92,246,0.30), transparent 70%)" }} />
