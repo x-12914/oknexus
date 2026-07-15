@@ -21,6 +21,7 @@ import { LiveMarkets } from "@/components/landing/LiveMarkets";
 import { FaqAccordion } from "@/components/landing/FaqAccordion";
 import { NewsletterForm } from "@/components/landing/NewsletterForm";
 import { Reveal } from "@/components/landing/Reveal";
+import { ComingSoonSection } from "@/components/landing/ComingSoonSection";
 import { Logo } from "@/components/brand/Logo";
 import { AssetCoin } from "@/components/swap/AssetSelect";
 
@@ -306,6 +307,9 @@ export default function LandingPage() {
             ))}
           </div>
         </section>
+
+        {/* On the roadmap / coming soon */}
+        <ComingSoonSection />
 
         {/* Security */}
         <section id="security" className="mx-auto max-w-6xl px-4 py-16 md:py-20">
