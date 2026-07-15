@@ -123,7 +123,7 @@ export function LandingHeader() {
         )}
       >
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-          <Link href="/" aria-label="Nexus home" onClick={close}>
+          <Link href="/" aria-label="OKNexus home" onClick={close}>
             <Logo />
           </Link>
 
@@ -173,7 +173,7 @@ export function LandingHeader() {
         )}
       >
         <div className="flex h-16 shrink-0 items-center justify-between px-4">
-          <Link href="/" aria-label="Nexus home" onClick={close}>
+          <Link href="/" aria-label="OKNexus home" onClick={close}>
             <Logo />
           </Link>
           <button

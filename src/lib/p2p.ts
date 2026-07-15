@@ -380,7 +380,7 @@ export async function actP2POrder(
         if (o.status !== "PAID")
           throw new Error("Disputes can only be raised after payment is marked");
         status = "DISPUTED";
-        sysText = "Dispute opened. A Nexus moderator will review the evidence and mediate.";
+        sysText = "Dispute opened. A OKNexus moderator will review the evidence and mediate.";
         break;
       default:
         throw new Error("Unknown action");

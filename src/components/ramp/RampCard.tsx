@@ -375,7 +375,7 @@ export function RampCard() {
       </button>
 
       <p className="mt-3 text-center text-[10px] text-[var(--color-muted)]">
-        Crypto settles to your Nexus wallet · fiat rail is simulated (demo)
+        Crypto settles to your OKNexus wallet · fiat rail is simulated (demo)
       </p>
     </div>
   );

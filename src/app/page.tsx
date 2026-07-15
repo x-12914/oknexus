@@ -20,6 +20,7 @@ import { LandingHeader } from "@/components/landing/LandingHeader";
 import { LiveMarkets } from "@/components/landing/LiveMarkets";
 import { FaqAccordion } from "@/components/landing/FaqAccordion";
 import { NewsletterForm } from "@/components/landing/NewsletterForm";
+import { SocialLinks } from "@/components/landing/SocialLinks";
 import { Reveal } from "@/components/landing/Reveal";
 import { ComingSoonSection } from "@/components/landing/ComingSoonSection";
 import { Logo } from "@/components/brand/Logo";
@@ -69,8 +70,8 @@ const SECURITY = [
 
 const FAQ = [
   {
-    q: "How secure is Nexus?",
-    a: "Nexus protects your account with encryption, two-factor authentication, device verification, and around-the-clock monitoring. The majority of assets are kept in cold storage, and every P2P trade is escrow-protected.",
+    q: "How secure is OKNexus?",
+    a: "OKNexus protects your account with encryption, two-factor authentication, device verification, and around-the-clock monitoring. The majority of assets are kept in cold storage, and every P2P trade is escrow-protected.",
   },
   {
     q: "What can I trade?",
@@ -81,8 +82,8 @@ const FAQ = [
     a: "Every account gets real on-chain deposit addresses on Ethereum, Solana, and Bitcoin. Deposits are credited automatically after network confirmations, and you can withdraw to any external address.",
   },
   {
-    q: "Does Nexus hold my funds?",
-    a: "Yes — Nexus is a custodial exchange. Your balances live in your account and are protected by our security stack, and you can withdraw on-chain at any time.",
+    q: "Does OKNexus hold my funds?",
+    a: "Yes — OKNexus is a custodial exchange. Your balances live in your account and are protected by our security stack, and you can withdraw on-chain at any time.",
   },
   {
     q: "What are the fees?",
@@ -365,7 +366,7 @@ export default function LandingPage() {
             <div className="spectrum-bg relative overflow-hidden rounded-[2rem] px-6 py-16 text-center">
             <div className="relative z-10">
               <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight text-white [text-wrap:balance] md:text-5xl">
-                Start your crypto journey with Nexus
+                Start your crypto journey with OKNexus
               </h2>
               <p className="mx-auto mt-4 max-w-lg text-white/85">
                 Create your free account in seconds and trade from any device.
@@ -403,6 +404,7 @@ export default function LandingPage() {
                 <div className="mb-2 text-sm font-medium text-white">Stay in the loop</div>
                 <NewsletterForm />
               </div>
+              <SocialLinks className="mt-6" />
             </div>
             <FooterCol
               title="Products"
@@ -434,7 +436,7 @@ export default function LandingPage() {
             />
           </div>
           <div className="mt-12 flex flex-col gap-3 border-t border-[var(--color-border)] pt-6 text-xs text-[var(--color-muted)] sm:flex-row sm:items-center sm:justify-between">
-            <span>© 2026 Nexus Exchange. All rights reserved.</span>
+            <span>© 2026 OKNexus Exchange. All rights reserved.</span>
             <span>Demo platform · live market data via Binance · not financial advice.</span>
           </div>
         </div>

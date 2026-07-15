@@ -7,7 +7,7 @@ const geistSans = Manrope({ variable: "--font-geist-sans", subsets: ["latin"] })
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Nexus Exchange — Connecting You to the Future of Finance",
+  title: "OKNexus Exchange — Connecting You to the Future of Finance",
   description:
     "A next-generation digital asset exchange. Trade crypto with spot, instant swap, fiat on/off ramp, OTC, and P2P — secure, fast, and compliance-first.",
 };

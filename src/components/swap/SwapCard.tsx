@@ -337,7 +337,7 @@ export function SwapCard() {
 
       <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-[var(--color-muted)]">
         <AssetCoin symbol={fromSymbol} size={14} />
-        Live pricing · settles to your Nexus wallet
+        Live pricing · settles to your OKNexus wallet
       </div>
     </div>
   );

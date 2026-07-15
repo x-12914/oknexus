@@ -67,8 +67,18 @@ export function Logo({
     <span className={cn("flex items-center gap-2", className)}>
       <NexusMark className="h-8 w-8 shrink-0" />
       {wordmark ? (
-        <span className="text-lg font-bold uppercase tracking-wide text-[var(--color-foreground)]">
-          Nexus
+        <span className="text-lg font-bold uppercase tracking-wide">
+          <span
+            style={{
+              backgroundImage: "linear-gradient(90deg,#F7911B,#FFD429)",
+              WebkitBackgroundClip: "text",
+              backgroundClip: "text",
+              color: "transparent",
+            }}
+          >
+            OK
+          </span>
+          <span className="text-[var(--color-foreground)]">NEXUS</span>
         </span>
       ) : null}
     </span>
