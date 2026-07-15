@@ -1,29 +1,68 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Menu, X, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/Logo";
 
-const PRODUCTS = [
-  { href: "/trade/BTC-USDT", label: "Spot Trading", desc: "Order book, market & limit orders" },
-  { href: "/swap", label: "Instant Swap", desc: "Convert any two assets in a tap" },
-  { href: "/buy", label: "Buy & Sell", desc: "Cash in and out with fiat" },
-  { href: "/otc", label: "OTC Desk", desc: "Large trades, tighter spreads" },
-  { href: "/p2p", label: "P2P Marketplace", desc: "Escrow-protected peer trades" },
+type NavItem = { href: string; label: string; desc: string };
+type NavMenu = { label: string; items: NavItem[] };
+
+const MENUS: NavMenu[] = [
+  {
+    label: "Products",
+    items: [
+      { href: "/trade/BTC-USDT", label: "Spot Trading", desc: "Order book, market & limit orders" },
+      { href: "/swap", label: "Instant Swap", desc: "Convert any two assets in a tap" },
+      { href: "/buy", label: "Buy & Sell", desc: "Cash in and out with fiat" },
+      { href: "/otc", label: "OTC Desk", desc: "Large trades, tighter spreads" },
+      { href: "/p2p", label: "P2P Marketplace", desc: "Escrow-protected peer trades" },
+    ],
+  },
+  {
+    label: "Company",
+    items: [
+      { href: "#assets", label: "Supported Assets", desc: "Coins & tokens you can trade" },
+      { href: "#security", label: "Security", desc: "How we protect your funds" },
+      { href: "#faq", label: "FAQ", desc: "Answers to common questions" },
+    ],
+  },
 ];
 
-const NAV = [
-  { href: "#assets", label: "Assets" },
-  { href: "#security", label: "Security" },
-  { href: "#faq", label: "FAQ" },
-];
+/** A desktop nav item that reveals its menu on hover/focus. */
+function Dropdown({ menu }: { menu: NavMenu }) {
+  return (
+    <div className="group relative">
+      <button
+        type="button"
+        className="flex items-center gap-1 py-2 transition-colors hover:text-white"
+        aria-haspopup="true"
+      >
+        {menu.label}
+        <ChevronDown className="h-4 w-4 transition-transform duration-200 group-hover:rotate-180" />
+      </button>
+      <div className="invisible absolute left-1/2 top-full -translate-x-1/2 translate-y-1 pt-3 opacity-0 transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
+        <div className="w-72 rounded-2xl border border-white/10 bg-[#100d1c]/95 p-2 shadow-2xl backdrop-blur-xl">
+          {menu.items.map((it) => (
+            <Link
+              key={it.href}
+              href={it.href}
+              className="flex flex-col rounded-xl px-3 py-2.5 transition-colors hover:bg-white/5"
+            >
+              <span className="text-sm font-medium text-white">{it.label}</span>
+              <span className="text-xs text-[var(--color-muted)]">{it.desc}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function LandingHeader() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
-  const headerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -32,145 +71,136 @@ export function LandingHeader() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Close the mobile menu on Escape or a click outside the header.
+  // While the full-screen menu is open: lock body scroll and close on Escape.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
-    const onClick = (e: MouseEvent) => {
-      if (headerRef.current && !headerRef.current.contains(e.target as Node)) setOpen(false);
-    };
     window.addEventListener("keydown", onKey);
-    window.addEventListener("mousedown", onClick);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     return () => {
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("mousedown", onClick);
+      document.body.style.overflow = prevOverflow;
     };
   }, [open]);
 
   const close = () => setOpen(false);
 
   return (
-    <header
-      ref={headerRef}
-      className={cn(
-        "sticky top-0 z-40 transition-colors duration-300",
-        scrolled || open
-          ? "border-b border-white/10 bg-[var(--topbar-bg)] backdrop-blur-xl"
-          : "border-b border-transparent",
-      )}
-    >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link href="/" aria-label="Nexus home" onClick={close}>
-          <Logo />
-        </Link>
+    <>
+      <header
+        className={cn(
+          "sticky top-0 z-40 transition-colors duration-300",
+          scrolled
+            ? "border-b border-white/10 bg-[var(--topbar-bg)] backdrop-blur-xl"
+            : "border-b border-transparent",
+        )}
+      >
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+          <Link href="/" aria-label="Nexus home" onClick={close}>
+            <Logo />
+          </Link>
 
-        {/* Desktop navigation */}
-        <nav className="hidden items-center gap-7 text-sm text-[var(--color-muted)] md:flex">
-          <div className="group relative">
+          {/* Desktop navigation */}
+          <nav className="hidden items-center gap-7 text-sm text-[var(--color-muted)] md:flex">
+            {MENUS.map((m) => (
+              <Dropdown key={m.label} menu={m} />
+            ))}
+          </nav>
+
+          {/* Right side */}
+          <div className="flex items-center gap-2">
+            <Link
+              href="/login"
+              className="hidden rounded-full px-4 py-2 text-sm text-[var(--color-muted)] transition-colors hover:text-white md:inline-flex"
+            >
+              Log in
+            </Link>
+            <Link
+              href="/register"
+              className="hidden items-center rounded-full bg-white px-5 py-2 text-sm font-semibold text-[#0b0a12] transition-colors hover:bg-white/90 md:inline-flex"
+            >
+              Get started
+            </Link>
+            {/* Mobile menu button */}
             <button
               type="button"
-              className="flex items-center gap-1 py-2 transition-colors hover:text-white"
-              aria-haspopup="true"
+              onClick={() => setOpen(true)}
+              aria-label="Open menu"
+              aria-expanded={open}
+              aria-controls="mobile-menu"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 md:hidden"
             >
-              Products
-              <ChevronDown className="h-4 w-4 transition-transform duration-200 group-hover:rotate-180" />
+              <Menu className="h-6 w-6" />
             </button>
-            <div className="invisible absolute left-1/2 top-full -translate-x-1/2 translate-y-1 pt-3 opacity-0 transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
-              <div className="w-72 rounded-2xl border border-white/10 bg-[#100d1c]/95 p-2 shadow-2xl backdrop-blur-xl">
-                {PRODUCTS.map((p) => (
-                  <Link
-                    key={p.href}
-                    href={p.href}
-                    className="flex flex-col rounded-xl px-3 py-2.5 transition-colors hover:bg-white/5"
-                  >
-                    <span className="text-sm font-medium text-white">{p.label}</span>
-                    <span className="text-xs text-[var(--color-muted)]">{p.desc}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
           </div>
-          {NAV.map((l) => (
-            <a key={l.href} href={l.href} className="transition-colors hover:text-white">
-              {l.label}
-            </a>
-          ))}
-        </nav>
-
-        {/* Right side */}
-        <div className="flex items-center gap-2">
-          <Link
-            href="/login"
-            className="hidden rounded-full px-4 py-2 text-sm text-[var(--color-muted)] transition-colors hover:text-white md:inline-flex"
-          >
-            Log in
-          </Link>
-          <Link
-            href="/register"
-            className="spectrum-bg hidden items-center rounded-full px-5 py-2 text-sm font-semibold text-white md:inline-flex"
-          >
-            Get started
-          </Link>
-          {/* Mobile menu toggle */}
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-label={open ? "Close menu" : "Open menu"}
-            aria-expanded={open}
-            aria-controls="mobile-menu"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 md:hidden"
-          >
-            {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
         </div>
-      </div>
+      </header>
 
-      {/* Mobile dropdown menu */}
+      {/* Mobile full-screen overlay menu */}
       <div
         id="mobile-menu"
         aria-hidden={!open}
         className={cn(
-          "overflow-hidden transition-all duration-300 ease-out md:hidden",
-          open ? "max-h-[80vh] opacity-100" : "max-h-0 opacity-0 pointer-events-none",
+          "fixed inset-0 z-50 flex flex-col bg-[#08060f] transition-opacity duration-300 md:hidden",
+          open ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       >
-        <nav className="flex flex-col gap-1 border-t border-white/10 px-4 py-4 text-[var(--color-muted)]">
-          <a
-            href="#products"
+        <div className="flex h-16 shrink-0 items-center justify-between px-4">
+          <Link href="/" aria-label="Nexus home" onClick={close}>
+            <Logo />
+          </Link>
+          <button
+            type="button"
             onClick={close}
-            className="rounded-xl px-3 py-3 text-base transition-colors hover:bg-white/5 hover:text-white"
+            aria-label="Close menu"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
           >
-            Products
-          </a>
-          {NAV.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              onClick={close}
-              className="rounded-xl px-3 py-3 text-base transition-colors hover:bg-white/5 hover:text-white"
-            >
-              {l.label}
-            </a>
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto px-5 py-4">
+          {MENUS.map((m) => (
+            <div key={m.label} className="mb-7">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+                {m.label}
+              </p>
+              <div className="flex flex-col">
+                {m.items.map((it) => (
+                  <Link
+                    key={it.href}
+                    href={it.href}
+                    onClick={close}
+                    className="py-3 text-lg text-white/90 transition-colors hover:text-white"
+                  >
+                    {it.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
           ))}
-          <div className="my-2 h-px bg-white/10" />
+        </nav>
+
+        <div className="shrink-0 space-y-3 border-t border-white/10 px-5 py-5">
           <Link
             href="/login"
             onClick={close}
-            className="rounded-xl px-3 py-3 text-base text-white transition-colors hover:bg-white/5"
+            className="block rounded-full py-3 text-center text-base font-medium text-white ring-1 ring-white/15 transition-colors hover:bg-white/5"
           >
             Log in
           </Link>
           <Link
             href="/register"
             onClick={close}
-            className="spectrum-bg mt-1 rounded-full px-5 py-3 text-center text-sm font-semibold text-white"
+            className="block rounded-full bg-white py-3 text-center text-base font-semibold text-[#0b0a12] transition-colors hover:bg-white/90"
           >
             Get started
           </Link>
-        </nav>
+        </div>
       </div>
-    </header>
+    </>
   );
 }
