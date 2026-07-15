@@ -9,6 +9,9 @@ import { Logo } from "@/components/brand/Logo";
 type NavItem = { href: string; label: string; desc: string };
 type NavMenu = { label: string; items: NavItem[] };
 
+// Not-yet-built destinations point at the dashboard's Coming Soon hub for now.
+const SOON = "/dashboard";
+
 const MENUS: NavMenu[] = [
   {
     label: "Products",
@@ -16,16 +19,33 @@ const MENUS: NavMenu[] = [
       { href: "/trade/BTC-USDT", label: "Spot Trading", desc: "Order book, market & limit orders" },
       { href: "/swap", label: "Instant Swap", desc: "Convert any two assets in a tap" },
       { href: "/buy", label: "Buy & Sell", desc: "Cash in and out with fiat" },
-      { href: "/otc", label: "OTC Desk", desc: "Large trades, tighter spreads" },
       { href: "/p2p", label: "P2P Marketplace", desc: "Escrow-protected peer trades" },
+      { href: "/otc", label: "OTC Desk", desc: "Large trades, tighter spreads" },
+      { href: "/wallet", label: "Wallet", desc: "Balances, deposits & withdrawals" },
     ],
   },
   {
     label: "Company",
     items: [
-      { href: "#assets", label: "Supported Assets", desc: "Coins & tokens you can trade" },
-      { href: "#security", label: "Security", desc: "How we protect your funds" },
-      { href: "#faq", label: "FAQ", desc: "Answers to common questions" },
+      { href: SOON, label: "About Oknexus", desc: "Our mission and the team" },
+      { href: SOON, label: "Careers", desc: "Help build the future of finance" },
+      { href: SOON, label: "We Care", desc: "Community & social impact" },
+    ],
+  },
+  {
+    label: "Resources",
+    items: [
+      { href: SOON, label: "Academy", desc: "Learn crypto from the ground up" },
+      { href: SOON, label: "Blog", desc: "News, insights & updates" },
+      { href: SOON, label: "Rate Calculator", desc: "Estimate fees before you trade" },
+      { href: SOON, label: "Crypto Converter", desc: "Live rates between any assets" },
+    ],
+  },
+  {
+    label: "Support",
+    items: [
+      { href: SOON, label: "Help Center", desc: "Guides and answers, 24/7" },
+      { href: SOON, label: "Contact", desc: "Reach our support team" },
     ],
   },
 ];
@@ -46,7 +66,7 @@ function Dropdown({ menu }: { menu: NavMenu }) {
         <div className="w-72 rounded-2xl border border-white/10 bg-[#100d1c]/95 p-2 shadow-2xl backdrop-blur-xl">
           {menu.items.map((it) => (
             <Link
-              key={it.href}
+              key={it.label}
               href={it.href}
               className="flex flex-col rounded-xl px-3 py-2.5 transition-colors hover:bg-white/5"
             >
@@ -171,7 +191,7 @@ export function LandingHeader() {
               <div className="flex flex-col">
                 {m.items.map((it) => (
                   <Link
-                    key={it.href}
+                    key={it.label}
                     href={it.href}
                     onClick={close}
                     className="py-3 text-lg text-white/90 transition-colors hover:text-white"
