@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { Manrope, Geist_Mono } from "next/font/google";
+import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-// Manrope: clean geometric sans, close to the Exodus brand type.
-const geistSans = Manrope({ variable: "--font-geist-sans", subsets: ["latin"] });
+// Inter: the client's preferred UI typeface (variable font, weights 300–800).
+const geistSans = Inter({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
