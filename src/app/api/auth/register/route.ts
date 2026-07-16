@@ -3,6 +3,8 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { ensureWallets } from "@/lib/wallet";
+import { emailConfigured } from "@/lib/email";
+import { sendVerificationEmail } from "@/lib/email-verify";
 
 const RegisterSchema = z.object({
   email: z.string().email(),
@@ -46,6 +48,15 @@ export async function POST(req: NextRequest) {
 
   // Seed the new account with demo wallet balances.
   await ensureWallets(user.id);
+
+  // Send the verification email (non-blocking: registration succeeds regardless).
+  if (emailConfigured()) {
+    try {
+      await sendVerificationEmail({ id: user.id, email: user.email, name: user.name });
+    } catch {
+      // Swallow — a failed email must not fail signup.
+    }
+  }
 
   return Response.json({ ok: true });
 }
