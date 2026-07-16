@@ -9,15 +9,24 @@ import {
   getAddress,
   isAddress,
   parseAbiItem,
+  encodeFunctionData,
+  serializeTransaction,
   erc20Abi,
 } from "viem";
 import { sepolia } from "viem/chains";
 import { mnemonicToAccount } from "viem/accounts";
 import type { ChainAdapter, ChainConfig, OnChainDeposit, TokenConfig } from "./types";
+import { turnkeyConfigured, signEvmTransaction } from "@/lib/turnkey";
 
 const TRANSFER_EVENT = parseAbiItem(
   "event Transfer(address indexed from, address indexed to, uint256 value)",
 );
+
+/** RPC endpoint — prefers Infura (the client's chosen provider) when INFURA_API_KEY is set. */
+function evmRpcUrl(): string | undefined {
+  if (process.env.INFURA_API_KEY) return `https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`;
+  return process.env.EVM_RPC_URL;
+}
 
 function parseTokens(): TokenConfig[] {
   const raw = process.env.EVM_TOKENS;
@@ -35,8 +44,9 @@ function parseTokens(): TokenConfig[] {
 }
 
 // EVM custody adapter. Points at Sepolia today; the same code runs on mainnet by
-// changing EVM_RPC_URL + the viem chain. Clients are created lazily so the module
-// is import-safe during build (no env required until a request actually uses it).
+// changing the RPC + the viem chain. Two withdrawal backends:
+//  - Turnkey (when configured): build unsigned tx → Turnkey signs → broadcast via Infura.
+//  - HD hot wallet (fallback): viem signs locally with the custody-seed account 0.
 export class EvmAdapter implements ChainAdapter {
   readonly config: ChainConfig;
   private _pub?: ReturnType<typeof createPublicClient>;
@@ -63,7 +73,7 @@ export class EvmAdapter implements ChainAdapter {
 
   private pub() {
     if (!this._pub) {
-      this._pub = createPublicClient({ chain: sepolia, transport: http(process.env.EVM_RPC_URL) });
+      this._pub = createPublicClient({ chain: sepolia, transport: http(evmRpcUrl()) });
     }
     return this._pub;
   }
@@ -78,7 +88,7 @@ export class EvmAdapter implements ChainAdapter {
       this._wallet = createWalletClient({
         account: this.hot(),
         chain: sepolia,
-        transport: http(process.env.EVM_RPC_URL),
+        transport: http(evmRpcUrl()),
       });
     }
     return this._wallet;
@@ -144,6 +154,10 @@ export class EvmAdapter implements ChainAdapter {
 
   async sendWithdrawal(symbol: string, to: string, amount: number): Promise<string> {
     const dest = getAddress(to);
+    if (turnkeyConfigured()) {
+      return this.sendTurnkeyWithdrawal(symbol, dest, amount);
+    }
+    // Fallback: sign locally with the HD hot wallet (account 0).
     if (symbol === this.config.nativeSymbol) {
       return this.wallet().sendTransaction({
         account: this.hot(),
@@ -162,6 +176,72 @@ export class EvmAdapter implements ChainAdapter {
       functionName: "transfer",
       args: [dest, parseUnits(String(amount), token.decimals)],
     });
+  }
+
+  /** The Turnkey-controlled hot wallet that funds withdrawals. */
+  private turnkeyHotAddress(): `0x${string}` {
+    const a = process.env.TURNKEY_EVM_HOT_ADDRESS;
+    if (!a) {
+      throw new Error(
+        "TURNKEY_EVM_HOT_ADDRESS is not set — provision the hot wallet (scripts/turnkey-hot-wallet.mjs), " +
+          "set it in .env, and fund it from a Sepolia faucet.",
+      );
+    }
+    return getAddress(a);
+  }
+
+  /** Withdraw via Turnkey: build an unsigned tx, have Turnkey sign it, broadcast via Infura. */
+  private async sendTurnkeyWithdrawal(
+    symbol: string,
+    dest: `0x${string}`,
+    amount: number,
+  ): Promise<string> {
+    const from = this.turnkeyHotAddress();
+    const pub = this.pub();
+
+    let to: `0x${string}`;
+    let value: bigint;
+    let data: `0x${string}` | undefined;
+    if (symbol === this.config.nativeSymbol) {
+      to = dest;
+      value = parseEther(String(amount));
+    } else {
+      const token = this.config.tokens.find((t) => t.symbol === symbol);
+      if (!token) throw new Error(`Unsupported token for withdrawal: ${symbol}`);
+      to = token.address as `0x${string}`;
+      value = BigInt(0);
+      data = encodeFunctionData({
+        abi: erc20Abi,
+        functionName: "transfer",
+        args: [dest, parseUnits(String(amount), token.decimals)],
+      });
+    }
+
+    const [nonce, fees] = await Promise.all([
+      pub.getTransactionCount({ address: from, blockTag: "pending" }),
+      pub.estimateFeesPerGas(),
+    ]);
+    let gas: bigint;
+    try {
+      gas = await pub.estimateGas({ account: from, to, value, data });
+    } catch {
+      gas = data ? BigInt(100000) : BigInt(21000);
+    }
+
+    const unsigned = serializeTransaction({
+      chainId: sepolia.id,
+      type: "eip1559",
+      nonce,
+      to,
+      value,
+      data,
+      gas,
+      maxFeePerGas: fees.maxFeePerGas,
+      maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+    });
+    const signed = await signEvmTransaction(from, unsigned.slice(2));
+    const serializedTransaction = (signed.startsWith("0x") ? signed : `0x${signed}`) as `0x${string}`;
+    return pub.sendRawTransaction({ serializedTransaction });
   }
 
   validateAddress(address: string): boolean {
