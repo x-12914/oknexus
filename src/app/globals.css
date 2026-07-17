@@ -75,6 +75,20 @@ body {
   background-color: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+  line-height: 1.6;
+}
+
+/* Exodus-style typography: slight negative tracking on headings for a premium,
+   tighter look. In @layer base so explicit tracking-* utilities still win. */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    letter-spacing: -0.02em;
+  }
 }
 
 /* Signature aurora glow, fixed behind the whole app; swaps with the theme. */
