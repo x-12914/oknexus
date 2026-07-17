@@ -64,15 +64,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name ?? undefined,
           role: user.role,
+          tokenVersion: user.tokenVersion,
         };
       },
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = (user as { id: string }).id;
         token.role = (user as { role?: UserRole }).role;
+        token.tokenVersion = (user as { tokenVersion?: number }).tokenVersion ?? 0;
+      }
+      // On every request: enforce global revocation + refresh email-verified state.
+      if (token.id) {
+        const db = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { tokenVersion: true, emailVerified: true },
+        });
+        if (!db) return null; // account gone
+        if (db.tokenVersion !== (token.tokenVersion ?? 0)) return null; // signed out everywhere
+        token.emailVerified = Boolean(db.emailVerified);
       }
       return token;
     },
@@ -80,6 +92,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as UserRole;
+        session.user.isEmailVerified = Boolean(token.emailVerified);
       }
       return session;
     },

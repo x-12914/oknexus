@@ -26,6 +26,7 @@ model User {
   kycReviewedAt DateTime?
   twoFAEnabled  Boolean   @default(false)
   twoFASecret   String? // encrypted TOTP secret (AES-256-GCM)
+  tokenVersion  Int       @default(0) // bump to invalidate all existing sessions ("sign out everywhere")
   suspended     Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

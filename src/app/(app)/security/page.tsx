@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { describeDevice } from "@/lib/login-history";
 import { TwoFactorCard } from "@/components/security/TwoFactorCard";
 import { LoginHistory } from "@/components/security/LoginHistory";
+import { SignOutAllCard } from "@/components/security/SignOutAllCard";
 
 export default async function SecurityPage() {
   const u = await sessionUser();
@@ -38,6 +39,7 @@ export default async function SecurityPage() {
               at: e.createdAt.getTime(),
             }))}
           />
+          <SignOutAllCard />
         </div>
       </div>
     </div>
