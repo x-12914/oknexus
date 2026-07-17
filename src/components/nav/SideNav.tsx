@@ -10,6 +10,7 @@ import {
   Users,
   LayoutDashboard,
   Wallet,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/Logo";
@@ -17,6 +18,7 @@ import { Logo } from "@/components/brand/Logo";
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/wallet", label: "Wallet", icon: Wallet },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/trade/BTC-USDT", label: "Spot Trading", icon: CandlestickChart, match: "/trade" },
   { href: "/swap", label: "Instant Swap", icon: ArrowLeftRight },
   { href: "/otc", label: "OTC Desk", icon: Briefcase },

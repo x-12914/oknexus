@@ -29,6 +29,7 @@ import type {
 } from "@/lib/exchange/types";
 import type { Portfolio, LedgerActivity } from "@/lib/wallet-types";
 import type { NotificationView } from "@/lib/notification-types";
+import type { Analytics } from "@/lib/analytics-types";
 import type {
   CustodyConfig,
   DepositAddressInfo,
@@ -72,6 +73,9 @@ export const api = {
     fetch("/api/transactions", { cache: "no-store" }).then((r) =>
       j<{ activity: LedgerActivity[] }>(r),
     ),
+
+  analytics: () =>
+    fetch("/api/analytics", { cache: "no-store" }).then((r) => j<Analytics>(r)),
 
   walletTransfer: (input: { toEmail: string; symbol: string; amount: number; note?: string }) =>
     fetch("/api/wallet/transfer", {
