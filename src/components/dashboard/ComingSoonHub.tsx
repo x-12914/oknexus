@@ -18,7 +18,8 @@ type Feature = { icon: LucideIcon; title: string; desc: string };
 /** Live products, linked so people can jump straight into what already works. */
 const LIVE: { href: string; label: string }[] = [
   { href: "/trade/BTC-USDT", label: "Spot Trading" },
-  { href: "/convert", label: "Convert" },
+  { href: "/swap", label: "Instant Swap" },
+  { href: "/otc", label: "OTC Desk" },
   { href: "/buy", label: "Buy & Sell" },
   { href: "/p2p", label: "P2P Marketplace" },
   { href: "/wallet", label: "Wallet" },

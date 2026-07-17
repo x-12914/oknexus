@@ -9,6 +9,7 @@ import {
   Eye,
   ArrowLeftRight,
   CreditCard,
+  Briefcase,
   Wallet,
   BadgeCheck,
   Radio,
@@ -53,7 +54,8 @@ const ASSETS = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "USDT"];
 
 const PRODUCTS = [
   { icon: CreditCard, title: "Buy & Sell", desc: "Move between cash and crypto with cards, bank transfers, and local rails." },
-  { icon: ArrowLeftRight, title: "Convert", desc: "Swap any two assets instantly — large orders auto-route to the OTC desk." },
+  { icon: ArrowLeftRight, title: "Instant Swap", desc: "Convert between any two assets in one tap at a locked, transparent rate." },
+  { icon: Briefcase, title: "OTC Desk", desc: "Execute large blocks privately at a firm quote, with minimal market impact." },
   { icon: Wallet, title: "Deposits & withdrawals", desc: "Real on-chain addresses per user across Ethereum, Solana, and Bitcoin." },
   { icon: Fingerprint, title: "Account security", desc: "Two-factor authentication, device verification, and login monitoring." },
   { icon: BadgeCheck, title: "Identity & compliance", desc: "Built-in KYC and AML controls that meet global standards." },
@@ -236,11 +238,11 @@ export default function LandingPage() {
           />
           <FeatureRow
             flip
-            eyebrow="Convert"
+            eyebrow="Instant swap"
             title="Swap any two assets in one tap"
             desc="Convert between assets at a locked, transparent rate that refreshes every few seconds. No order books to read — just choose, review the quote, and confirm."
-            cta="Open Convert"
-            href="/convert"
+            cta="Try Instant Swap"
+            href="/swap"
             visual={<SwapMock />}
           />
           <FeatureRow
@@ -409,8 +411,9 @@ export default function LandingPage() {
               title="Products"
               links={[
                 ["Spot Trading", "/trade/BTC-USDT"],
-                ["Convert", "/convert"],
+                ["Instant Swap", "/swap"],
                 ["Buy & Sell", "/buy"],
+                ["OTC Desk", "/otc"],
                 ["P2P Trading", "/p2p"],
               ]}
             />
@@ -575,7 +578,7 @@ function SpotMock() {
 function SwapMock() {
   return (
     <MockShell>
-      <div className="text-sm font-semibold text-white">Convert</div>
+      <div className="text-sm font-semibold text-white">Instant Swap</div>
       <div className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3">
         <div className="text-xs text-[var(--color-muted)]">You pay</div>
         <div className="mt-1 flex items-center justify-between">

@@ -56,7 +56,7 @@ export function WalletView() {
             <CreditCard className="h-4 w-4" /> Buy
           </Link>
           <Link
-            href="/convert"
+            href="/swap"
             className="btn-brand inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium"
           >
             <ArrowLeftRight className="h-4 w-4" /> Swap

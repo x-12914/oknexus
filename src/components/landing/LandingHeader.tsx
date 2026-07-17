@@ -17,8 +17,9 @@ const MENUS: NavMenu[] = [
     label: "Products",
     items: [
       { href: "/trade/BTC-USDT", label: "Spot Trading", desc: "Order book, market & limit orders" },
-      { href: "/convert", label: "Convert", desc: "Swap instantly — large orders auto-route to OTC" },
+      { href: "/swap", label: "Instant Swap", desc: "Convert any two assets in a tap" },
       { href: "/buy", label: "Buy & Sell", desc: "Cash in and out with fiat" },
+      { href: "/otc", label: "OTC Desk", desc: "Large trades, tighter spreads" },
       { href: "/p2p", label: "P2P Marketplace", desc: "Escrow-protected peer trades" },
       { href: "/wallet", label: "Wallet", desc: "Balances, deposits & withdrawals" },
     ],

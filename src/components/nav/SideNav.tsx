@@ -6,6 +6,7 @@ import {
   CandlestickChart,
   ArrowLeftRight,
   CreditCard,
+  Briefcase,
   Users,
   LayoutDashboard,
   Wallet,
@@ -17,7 +18,8 @@ const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/wallet", label: "Wallet", icon: Wallet },
   { href: "/trade/BTC-USDT", label: "Spot Trading", icon: CandlestickChart, match: "/trade" },
-  { href: "/convert", label: "Convert", icon: ArrowLeftRight },
+  { href: "/swap", label: "Instant Swap", icon: ArrowLeftRight },
+  { href: "/otc", label: "OTC Desk", icon: Briefcase },
   { href: "/buy", label: "Buy & Sell", icon: CreditCard },
   { href: "/p2p", label: "P2P Trading", icon: Users },
 ] as const;
