@@ -44,6 +44,7 @@ model User {
   p2pOrders     P2POrder[]
   p2pAds        P2PAd[]
   loginEvents   LoginEvent[]
+  notifications Notification[]
 
   depositAddresses DepositAddress[]
   deposits         Deposit[]
@@ -422,6 +423,23 @@ model LoginEvent {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+/// In-app notifications (bell/feed): deposits, withdrawals, transfers, security events.
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String // DEPOSIT | WITHDRAWAL | TRANSFER | SECURITY | TRADE | SYSTEM
+  title     String
+  body      String
+  href      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, read])
 }
 
 enum DepositStatus {

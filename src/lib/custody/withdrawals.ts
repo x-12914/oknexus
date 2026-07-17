@@ -1,6 +1,7 @@
 import { LedgerType, type Withdrawal } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { withLedger, lock, unlock, settleLocked } from "@/lib/ledger";
+import { notify } from "@/lib/notifications";
 import { getChainAdapter } from "./registry";
 
 // Flat network fee per asset, charged on withdrawal and kept by the platform
@@ -91,18 +92,27 @@ export async function processWithdrawals(chain: string): Promise<ProcessResult> 
       result.broadcast++;
     } catch (e) {
       // Couldn't broadcast — return the locked funds.
-      await withLedger(async (tx) => {
+      const reverted = await withLedger(async (tx) => {
         const upd = await tx.withdrawal.updateMany({
           where: { id: w.id, status: "REQUESTED" },
           data: { status: "FAILED", error: String((e as Error).message).slice(0, 300) },
         });
-        if (upd.count === 0) return;
+        if (upd.count === 0) return false;
         await unlock(tx, w.userId, w.symbol, total, {
           type: LedgerType.WITHDRAWAL,
           refId: w.id,
           memo: `Withdraw failed ${w.symbol}`,
         });
+        return true;
       });
+      if (reverted) {
+        await notify(w.userId, {
+          type: "WITHDRAWAL",
+          title: "Withdrawal failed",
+          body: `Your ${Number(w.amount)} ${w.symbol} withdrawal couldn't be sent — the funds were returned to your balance.`,
+          href: "/withdraw",
+        });
+      }
       result.failed++;
     }
   }
@@ -120,18 +130,27 @@ export async function processWithdrawals(chain: string): Promise<ProcessResult> 
 
     if (!st.success) {
       // Reverted on-chain — refund the locked funds.
-      await withLedger(async (tx) => {
+      const reverted = await withLedger(async (tx) => {
         const upd = await tx.withdrawal.updateMany({
           where: { id: w.id, status: "BROADCAST" },
           data: { status: "FAILED", error: "Transaction reverted on-chain" },
         });
-        if (upd.count === 0) return;
+        if (upd.count === 0) return false;
         await unlock(tx, w.userId, w.symbol, total, {
           type: LedgerType.WITHDRAWAL,
           refId: w.id,
           memo: `Withdraw reverted ${w.symbol}`,
         });
+        return true;
       });
+      if (reverted) {
+        await notify(w.userId, {
+          type: "WITHDRAWAL",
+          title: "Withdrawal failed",
+          body: `Your ${Number(w.amount)} ${w.symbol} withdrawal reverted on-chain — the funds were returned to your balance.`,
+          href: "/withdraw",
+        });
+      }
       result.failed++;
       continue;
     }
@@ -139,18 +158,27 @@ export async function processWithdrawals(chain: string): Promise<ProcessResult> 
     const confirmations = Number(tip - st.blockNumber) + 1;
     if (confirmations >= minConf) {
       // Confirmed — the locked funds now leave the account for good.
-      await withLedger(async (tx) => {
+      const confirmed = await withLedger(async (tx) => {
         const upd = await tx.withdrawal.updateMany({
           where: { id: w.id, status: "BROADCAST" },
           data: { status: "CONFIRMED" },
         });
-        if (upd.count === 0) return;
+        if (upd.count === 0) return false;
         await settleLocked(tx, w.userId, w.symbol, total, {
           type: LedgerType.WITHDRAWAL,
           refId: w.id,
           memo: `Withdraw ${w.symbol}`,
         });
+        return true;
       });
+      if (confirmed) {
+        await notify(w.userId, {
+          type: "WITHDRAWAL",
+          title: "Withdrawal sent",
+          body: `Your ${Number(w.amount)} ${w.symbol} withdrawal was confirmed on-chain.`,
+          href: "/withdraw",
+        });
+      }
       result.confirmed++;
     }
   }

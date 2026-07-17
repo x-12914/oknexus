@@ -1,6 +1,7 @@
 import { LedgerType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { withLedger, credit } from "@/lib/ledger";
+import { notify } from "@/lib/notifications";
 import { getChainAdapter } from "./registry";
 
 // Max blocks scanned per pass — bounds RPC work; the cursor catches up over
@@ -84,19 +85,28 @@ export async function scanChain(chain: string): Promise<ScanResult> {
   for (const d of pendings) {
     const confirmations = Number(tip - d.blockNumber) + 1;
     if (confirmations >= minConf) {
-      await withLedger(async (tx) => {
+      const didCredit = await withLedger(async (tx) => {
         const upd = await tx.deposit.updateMany({
           where: { id: d.id, status: "PENDING" },
           data: { status: "CREDITED", confirmations, creditedAt: new Date() },
         });
-        if (upd.count === 0) return;
+        if (upd.count === 0) return false;
         await credit(tx, d.userId, d.symbol, Number(d.amount), {
           type: LedgerType.DEPOSIT,
           refId: d.id,
           memo: `Deposit ${d.symbol}`,
         });
+        return true;
       });
-      credited++;
+      if (didCredit) {
+        credited++;
+        await notify(d.userId, {
+          type: "DEPOSIT",
+          title: "Deposit credited",
+          body: `${Number(d.amount)} ${d.symbol} arrived in your wallet.`,
+          href: "/wallet",
+        });
+      }
     } else {
       await prisma.deposit.update({ where: { id: d.id }, data: { confirmations } });
     }

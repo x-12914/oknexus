@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { LedgerType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { withLedger, credit, debit, InsufficientBalanceError } from "@/lib/ledger";
+import { notify } from "@/lib/notifications";
 
 /** A user-facing problem with a transfer (bad recipient, insufficient funds, …). */
 export class TransferError extends Error {}
@@ -63,6 +64,14 @@ export async function sendInternalTransfer(
     }
     throw e;
   }
+
+  // Tell the recipient they've been paid (best-effort).
+  await notify(recipient.id, {
+    type: "TRANSFER",
+    title: "Payment received",
+    body: `You received ${amount} ${symbol} from ${senderEmail}.`,
+    href: "/wallet",
+  });
 
   return { symbol, amount, toEmail: recipient.email, toName: recipient.name };
 }

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { ensureWallets } from "@/lib/wallet";
 import { emailConfigured } from "@/lib/email";
 import { sendVerificationEmail } from "@/lib/email-verify";
+import { notify } from "@/lib/notifications";
 
 const RegisterSchema = z.object({
   email: z.string().email(),
@@ -48,6 +49,14 @@ export async function POST(req: NextRequest) {
 
   // Seed the new account with demo wallet balances.
   await ensureWallets(user.id);
+
+  // A first notification so the feed isn't empty on day one.
+  await notify(user.id, {
+    type: "SYSTEM",
+    title: "Welcome to OKNexus",
+    body: "Your account is ready. Fund your wallet to start trading.",
+    href: "/wallet",
+  });
 
   // Send the verification email (non-blocking: registration succeeds regardless).
   if (emailConfigured()) {

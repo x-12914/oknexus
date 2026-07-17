@@ -28,6 +28,7 @@ import type {
   Ticker,
 } from "@/lib/exchange/types";
 import type { Portfolio, LedgerActivity } from "@/lib/wallet-types";
+import type { NotificationView } from "@/lib/notification-types";
 import type {
   CustodyConfig,
   DepositAddressInfo,
@@ -83,6 +84,18 @@ export const api = {
         "Transfer failed",
       ),
     ),
+
+  notifications: () =>
+    fetch("/api/notifications", { cache: "no-store" }).then((r) =>
+      j<{ items: NotificationView[]; unread: number }>(r),
+    ),
+
+  markNotificationsRead: (ids?: string[]) =>
+    fetch("/api/notifications/read", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }).then((r) => mutate<{ ok: true }>(r, "Could not update notifications")),
 
   custodyConfig: () =>
     fetch("/api/custody/config", { cache: "no-store" }).then((r) => j<CustodyConfig>(r)),

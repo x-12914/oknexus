@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { Bell } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { UserMenu } from "./UserMenu";
 import { WalletBadge } from "./WalletBadge";
+import { NotificationBell } from "./NotificationBell";
 
 export function TopBar({ userEmail, isAdmin }: { userEmail?: string; isAdmin?: boolean }) {
   return (
@@ -20,13 +20,7 @@ export function TopBar({ userEmail, isAdmin }: { userEmail?: string; isAdmin?: b
         {userEmail ? (
           <>
             <WalletBadge />
-            <button
-              type="button"
-              aria-label="Notifications"
-              className="p-2 rounded-md hover:bg-[var(--color-surface-2)] text-[var(--color-muted)] hover:text-[var(--color-foreground)]"
-            >
-              <Bell className="h-4 w-4" />
-            </button>
+            <NotificationBell />
             <UserMenu email={userEmail} isAdmin={isAdmin} />
           </>
         ) : (

@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { sessionUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { verifyTotp, decryptSecret } from "@/lib/totp";
+import { notify } from "@/lib/notifications";
 
 // Confirm 2FA: verify a code against the pending secret, then flip it on.
 export async function POST(req: NextRequest) {
@@ -22,5 +23,11 @@ export async function POST(req: NextRequest) {
   }
 
   await prisma.user.update({ where: { id: userId }, data: { twoFAEnabled: true } });
+  await notify(userId, {
+    type: "SECURITY",
+    title: "Two-factor authentication enabled",
+    body: "2FA is now required at sign-in. Your account is more secure.",
+    href: "/security",
+  });
   return Response.json({ ok: true });
 }
