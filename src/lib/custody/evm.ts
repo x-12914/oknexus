@@ -244,6 +244,46 @@ export class EvmAdapter implements ChainAdapter {
     return pub.sendRawTransaction({ serializedTransaction });
   }
 
+  /**
+   * Sweep the native balance of a per-user Turnkey deposit address into the hot
+   * wallet (so the hot wallet can fund withdrawals). Turnkey signs for the address;
+   * gas is paid from the swept balance, leaving only dust. Native ETH only.
+   */
+  async sweepNativeToHot(
+    from: `0x${string}`,
+  ): Promise<{ txHash: string; amount: number } | null> {
+    const hot = this.turnkeyHotAddress();
+    if (from.toLowerCase() === hot.toLowerCase()) return null;
+
+    const pub = this.pub();
+    const [balance, fees] = await Promise.all([
+      pub.getBalance({ address: from }),
+      pub.estimateFeesPerGas(),
+    ]);
+    const gas = BigInt(21000);
+    const gasCost = gas * fees.maxFeePerGas;
+    const minSweep = parseEther(process.env.EVM_MIN_SWEEP ?? "0.002");
+    // Only sweep when it covers gas and leaves a worthwhile amount behind.
+    if (balance <= gasCost + minSweep) return null;
+
+    const value = balance - gasCost;
+    const nonce = await pub.getTransactionCount({ address: from, blockTag: "pending" });
+    const unsigned = serializeTransaction({
+      chainId: sepolia.id,
+      type: "eip1559",
+      nonce,
+      to: hot,
+      value,
+      gas,
+      maxFeePerGas: fees.maxFeePerGas,
+      maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+    });
+    const signed = await signEvmTransaction(from, unsigned.slice(2));
+    const serializedTransaction = (signed.startsWith("0x") ? signed : `0x${signed}`) as `0x${string}`;
+    const txHash = await pub.sendRawTransaction({ serializedTransaction });
+    return { txHash, amount: Number(formatEther(value)) };
+  }
+
   validateAddress(address: string): boolean {
     return isAddress(address);
   }

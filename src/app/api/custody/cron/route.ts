@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { ALL_CHAINS } from "@/lib/custody/registry";
 import { scanChain } from "@/lib/custody/scan";
+import { sweepChain } from "@/lib/custody/sweep";
 import { processWithdrawals } from "@/lib/custody/withdrawals";
 
 // Driven by a system cron on the VPS (every ~minute) with a bearer secret.
@@ -19,8 +20,9 @@ export async function POST(req: NextRequest) {
   for (const chain of ALL_CHAINS) {
     try {
       const scan = await scanChain(chain);
+      const sweep = await sweepChain(chain);
       const withdrawals = await processWithdrawals(chain);
-      chains[chain] = { scan, withdrawals };
+      chains[chain] = { scan, sweep, withdrawals };
     } catch (e) {
       chains[chain] = { error: (e as Error).message };
     }
