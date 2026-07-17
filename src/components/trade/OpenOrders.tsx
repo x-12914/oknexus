@@ -4,6 +4,13 @@ import { api } from "@/lib/api-client";
 import { usePolling } from "@/hooks/usePolling";
 import { cn, formatPrice, formatQty } from "@/lib/utils";
 
+const TYPE_LABEL: Record<string, string> = {
+  MARKET: "Market",
+  LIMIT: "Limit",
+  STOP: "Stop",
+  STOP_LIMIT: "Stop-Limit",
+};
+
 export function OpenOrders({
   pair,
   refreshToken,
@@ -32,7 +39,7 @@ export function OpenOrders({
       </div>
       {orders.length === 0 ? (
         <div className="flex-1 grid place-items-center text-sm text-[var(--color-muted)]">
-          No open orders. Place a limit order to see it here.
+          No open orders. Place a limit or stop order to see it here.
         </div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
@@ -56,9 +63,20 @@ export function OpenOrders({
                   <td className={cn("px-3 py-2 font-medium", o.side === "BUY" ? "text-[var(--color-up)]" : "text-[var(--color-down)]")}>
                     {o.side}
                   </td>
-                  <td className="px-3 py-2 text-[var(--color-muted)]">{o.type}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">
-                    {o.price != null ? formatPrice(o.price, 2) : "MKT"}
+                  <td className="px-3 py-2 text-[var(--color-muted)]">
+                    {TYPE_LABEL[o.type] ?? o.type}
+                    {o.status === "PENDING" ? (
+                      <span className="ml-1 rounded bg-[var(--color-surface-2)] px-1 py-0.5 text-[9px] uppercase tracking-wide text-amber-500">
+                        pending
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums" title={o.status === "PENDING" ? "Trigger price" : undefined}>
+                    {o.status === "PENDING" && o.triggerPrice != null
+                      ? `⤳ ${formatPrice(o.triggerPrice, 2)}`
+                      : o.price != null
+                        ? formatPrice(o.price, 2)
+                        : "MKT"}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">{formatQty(o.quantity, 6)}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{formatQty(o.filledQty, 6)}</td>

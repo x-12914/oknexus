@@ -159,9 +159,12 @@ enum OrderSide {
 enum OrderType {
   MARKET
   LIMIT
+  STOP // stop-market: triggers a market order when the stop price is hit
+  STOP_LIMIT // stop-limit: places a limit order when the stop price is hit
 }
 
 enum OrderStatus {
+  PENDING // stop order waiting for its trigger price
   OPEN
   PARTIAL
   FILLED
@@ -176,6 +179,7 @@ model Order {
   side         OrderSide
   type         OrderType
   price        Decimal?    @db.Decimal(30, 10)
+  triggerPrice Decimal?    @db.Decimal(30, 10) // stop/trigger price for STOP & STOP_LIMIT
   quantity     Decimal     @db.Decimal(30, 10)
   filledQty    Decimal     @default(0) @db.Decimal(30, 10)
   avgFillPrice Decimal?    @db.Decimal(30, 10)

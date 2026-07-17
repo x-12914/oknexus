@@ -7,9 +7,10 @@ import { placeOrder, listOpenOrders } from "@/lib/orders";
 const PlaceOrderSchema = z.object({
   pair: z.string().min(3),
   side: z.enum(["BUY", "SELL"]),
-  type: z.enum(["MARKET", "LIMIT"]),
+  type: z.enum(["MARKET", "LIMIT", "STOP", "STOP_LIMIT"]),
   quantity: z.number().positive(),
   price: z.number().positive().optional(),
+  triggerPrice: z.number().positive().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -25,9 +26,6 @@ export async function POST(req: NextRequest) {
     );
   }
   const input = parsed.data;
-  if (input.type === "LIMIT" && input.price == null) {
-    return Response.json({ error: "Limit orders require a price" }, { status: 400 });
-  }
 
   try {
     const order = await placeOrder({
@@ -37,6 +35,7 @@ export async function POST(req: NextRequest) {
       type: input.type,
       quantity: input.quantity,
       price: input.price,
+      triggerPrice: input.triggerPrice,
     });
     return Response.json(order);
   } catch (e) {

@@ -3,6 +3,7 @@ import { ALL_CHAINS } from "@/lib/custody/registry";
 import { scanChain } from "@/lib/custody/scan";
 import { sweepChain } from "@/lib/custody/sweep";
 import { processWithdrawals } from "@/lib/custody/withdrawals";
+import { processStopTriggers } from "@/lib/orders";
 
 // Driven by a system cron on the VPS (every ~minute) with a bearer secret.
 // Runs one deposit-scan + withdrawal-processing pass per chain. Idempotent, and
@@ -12,8 +13,11 @@ export async function POST(req: NextRequest) {
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // Stop-order triggers run regardless of custody config (they only need prices).
+  const stops = await processStopTriggers().catch((e) => ({ error: (e as Error).message }));
+
   if (!process.env.CUSTODY_MNEMONIC) {
-    return Response.json({ ok: false, reason: "custody not configured" });
+    return Response.json({ ok: true, stops, reason: "custody not configured" });
   }
 
   const chains: Record<string, unknown> = {};
@@ -27,5 +31,5 @@ export async function POST(req: NextRequest) {
       chains[chain] = { error: (e as Error).message };
     }
   }
-  return Response.json({ ok: true, chains });
+  return Response.json({ ok: true, stops, chains });
 }

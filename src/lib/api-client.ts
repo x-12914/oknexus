@@ -146,6 +146,7 @@ export const api = {
     type: OrderType;
     quantity: number;
     price?: number;
+    triggerPrice?: number;
   }) =>
     fetch("/api/orders", {
       method: "POST",

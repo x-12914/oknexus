@@ -6,6 +6,14 @@ import { usePolling } from "@/hooks/usePolling";
 import { cn, formatPrice } from "@/lib/utils";
 import type { OrderSide, OrderType } from "@/lib/exchange/types";
 
+const TYPE_LABEL: Record<OrderType, string> = {
+  LIMIT: "Limit",
+  MARKET: "Market",
+  STOP: "Stop",
+  STOP_LIMIT: "Stop-Limit",
+};
+const ORDER_TYPES: OrderType[] = ["LIMIT", "MARKET", "STOP", "STOP_LIMIT"];
+
 export function OrderForm({
   pair,
   presetPrice,
@@ -18,6 +26,7 @@ export function OrderForm({
   const [side, setSide] = useState<OrderSide>("BUY");
   const [type, setType] = useState<OrderType>("LIMIT");
   const [price, setPrice] = useState<string>("");
+  const [triggerPrice, setTriggerPrice] = useState<string>("");
   const [quantity, setQuantity] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +36,8 @@ export function OrderForm({
   const { data: ticker } = usePolling(() => api.ticker(pair), 2000, [pair]);
   const symbol = pair.replace("-", "/");
   const [base, quote] = symbol.split("/");
+  const showLimitPrice = type === "LIMIT" || type === "STOP_LIMIT";
+  const showTrigger = type === "STOP" || type === "STOP_LIMIT";
 
   const loadBalances = useCallback(() => {
     api
@@ -50,15 +61,13 @@ export function OrderForm({
 
   // Seed the limit price with the live price once the ticker first loads.
   const [priceSeeded, setPriceSeeded] = useState(false);
-  if (!priceSeeded && ticker && type === "LIMIT") {
+  if (!priceSeeded && ticker && showLimitPrice) {
     setPriceSeeded(true);
     if (!price) setPrice(ticker.last.toFixed(priceDecimals));
   }
 
   const totalNum =
-    type === "LIMIT"
-      ? Number(price || 0) * Number(quantity || 0)
-      : (ticker?.last ?? 0) * Number(quantity || 0);
+    (showLimitPrice ? Number(price || 0) : (ticker?.last ?? 0)) * Number(quantity || 0);
 
   const submit = async () => {
     setError(null);
@@ -68,8 +77,12 @@ export function OrderForm({
       setError("Enter a quantity");
       return;
     }
-    if (type === "LIMIT" && !(Number(price) > 0)) {
+    if (showLimitPrice && !(Number(price) > 0)) {
       setError("Enter a limit price");
+      return;
+    }
+    if (showTrigger && !(Number(triggerPrice) > 0)) {
+      setError("Enter a trigger price");
       return;
     }
     setSubmitting(true);
@@ -79,7 +92,8 @@ export function OrderForm({
         side,
         type,
         quantity: qty,
-        price: type === "LIMIT" ? Number(price) : undefined,
+        price: showLimitPrice ? Number(price) : undefined,
+        triggerPrice: showTrigger ? Number(triggerPrice) : undefined,
       });
       setMessage(
         `${side} ${type} ${qty} ${base} placed · ${order.status}${order.avgFillPrice ? ` @ ${formatPrice(order.avgFillPrice, priceDecimals)}` : ""}`,
@@ -119,28 +133,37 @@ export function OrderForm({
         </button>
       </div>
 
-      <div className="mt-3 flex items-center gap-1 text-xs">
-        {(["LIMIT", "MARKET"] as OrderType[]).map((t) => (
+      <div className="mt-3 flex items-center gap-0.5 text-xs">
+        {ORDER_TYPES.map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setType(t)}
             className={cn(
-              "px-2 py-1 rounded",
+              "px-1.5 py-1 rounded whitespace-nowrap",
               type === t
                 ? "text-[var(--color-accent)]"
                 : "text-[var(--color-muted)] hover:text-[var(--color-foreground)]",
             )}
           >
-            {t.charAt(0) + t.slice(1).toLowerCase()}
+            {TYPE_LABEL[t]}
           </button>
         ))}
       </div>
 
       <div className="mt-3 space-y-2 text-sm">
-        {type === "LIMIT" ? (
+        {showTrigger ? (
           <Field
-            label="Price"
+            label="Trigger price"
+            unit={quote}
+            value={triggerPrice}
+            onChange={setTriggerPrice}
+            placeholder={ticker ? ticker.last.toFixed(priceDecimals) : "0"}
+          />
+        ) : null}
+        {showLimitPrice ? (
+          <Field
+            label="Limit price"
             unit={quote}
             value={price}
             onChange={setPrice}
@@ -148,7 +171,8 @@ export function OrderForm({
           />
         ) : (
           <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-xs text-[var(--color-muted)]">
-            Market — filled against best {side === "BUY" ? "ask" : "bid"} @{" "}
+            {type === "STOP" ? "Triggers a market order" : "Market"} — filled against best{" "}
+            {side === "BUY" ? "ask" : "bid"} @{" "}
             <span className="text-[var(--color-foreground)] tabular-nums">
               {ticker ? formatPrice(side === "BUY" ? ticker.ask : ticker.bid, priceDecimals) : "—"}
             </span>
@@ -197,6 +221,15 @@ export function OrderForm({
           </span>
         </div>
 
+        {showTrigger ? (
+          <div className="text-[10px] leading-relaxed text-[var(--color-muted)]">
+            {side === "BUY"
+              ? "Buy stop fires when the price rises to your trigger."
+              : "Sell stop fires when the price falls to your trigger."}{" "}
+            Funds must be available then.
+          </div>
+        ) : null}
+
         {error ? (
           <div className="text-xs text-[var(--color-down)]">{error}</div>
         ) : null}
@@ -215,7 +248,11 @@ export function OrderForm({
               : "bg-[var(--color-down)] text-white hover:brightness-110",
           )}
         >
-          {submitting ? "Placing…" : `${side === "BUY" ? "Buy" : "Sell"} ${base}`}
+          {submitting
+            ? "Placing…"
+            : showTrigger
+              ? `Place ${side === "BUY" ? "buy" : "sell"} stop`
+              : `${side === "BUY" ? "Buy" : "Sell"} ${base}`}
         </button>
 
         <div className="text-[10px] text-[var(--color-muted)] pt-2 leading-relaxed">

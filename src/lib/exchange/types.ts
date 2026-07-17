@@ -1,6 +1,12 @@
 export type OrderSide = "BUY" | "SELL";
-export type OrderType = "MARKET" | "LIMIT";
-export type OrderStatus = "OPEN" | "PARTIAL" | "FILLED" | "CANCELLED" | "REJECTED";
+export type OrderType = "MARKET" | "LIMIT" | "STOP" | "STOP_LIMIT";
+export type OrderStatus =
+  | "PENDING"
+  | "OPEN"
+  | "PARTIAL"
+  | "FILLED"
+  | "CANCELLED"
+  | "REJECTED";
 
 export interface MarketInfo {
   symbol: string;
@@ -61,6 +67,7 @@ export interface PlaceOrderInput {
   type: OrderType;
   quantity: number;
   price?: number;
+  triggerPrice?: number;
 }
 
 export interface OrderResult {
@@ -69,6 +76,7 @@ export interface OrderResult {
   side: OrderSide;
   type: OrderType;
   price?: number;
+  triggerPrice?: number;
   quantity: number;
   filledQty: number;
   avgFillPrice?: number;
