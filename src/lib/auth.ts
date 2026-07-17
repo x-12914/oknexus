@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { verifyTotp, decryptSecret } from "@/lib/totp";
+import { recordLogin, clientIp } from "@/lib/login-history";
 import type { UserRole } from "@prisma/client";
 
 /** The signed-in user's id, or null. Use in route handlers to gate actions. */
@@ -32,7 +33,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
       credentials: { email: {}, password: {}, code: {} },
-      authorize: async (creds) => {
+      authorize: async (creds, request) => {
         const email = String(creds?.email ?? "").trim().toLowerCase();
         const password = String(creds?.password ?? "");
         if (!email || !password) return null;
@@ -49,6 +50,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const secret = user.twoFASecret ? decryptSecret(user.twoFASecret) : null;
           if (!secret || !verifyTotp(secret, String(creds?.code ?? ""))) return null;
         }
+
+        // Record the successful sign-in for the account's login history.
+        const headers = request instanceof Request ? request.headers : undefined;
+        await recordLogin(
+          user.id,
+          headers ? clientIp(headers) : null,
+          headers?.get("user-agent") ?? null,
+        );
 
         return {
           id: user.id,

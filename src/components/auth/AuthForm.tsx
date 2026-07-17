@@ -132,6 +132,17 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             required
           />
 
+          {isLogin && !needCode ? (
+            <div className="-mt-1 text-right">
+              <Link
+                href="/forgot-password"
+                className="text-xs text-[var(--color-accent)] hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
+          ) : null}
+
           {isLogin && needCode ? (
             <div>
               <Field
