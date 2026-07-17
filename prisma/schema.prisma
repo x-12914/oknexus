@@ -25,6 +25,7 @@ model User {
   kycIdNumber   String?
   kycReviewedAt DateTime?
   twoFAEnabled  Boolean   @default(false)
+  twoFASecret   String? // encrypted TOTP secret (AES-256-GCM)
   suspended     Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

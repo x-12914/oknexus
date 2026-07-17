@@ -18,6 +18,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [code, setCode] = useState("");
+  const [needCode, setNeedCode] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,20 +37,50 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           setLoading(false);
           return;
         }
+        const s = await signIn("credentials", { email, password, redirect: false });
+        if (s?.error) {
+          setError("Account created — but sign-in failed. Please log in.");
+          setLoading(false);
+          return;
+        }
+        router.push(AFTER_AUTH);
+        router.refresh();
+        return;
       }
 
-      const res = await signIn("credentials", { email, password, redirect: false });
-      if (res?.error) {
-        setError(
-          isLogin
-            ? "Invalid email or password."
-            : "Account created — but sign-in failed. Please log in.",
-        );
+      // Login — with an optional 2FA code step.
+      const s = await signIn("credentials", {
+        email,
+        password,
+        code: needCode ? code : undefined,
+        redirect: false,
+      });
+      if (!s?.error) {
+        router.push(AFTER_AUTH);
+        router.refresh();
+        return;
+      }
+      if (needCode) {
+        setError("That code is incorrect or expired.");
         setLoading(false);
         return;
       }
-      router.push(AFTER_AUTH);
-      router.refresh();
+      // First attempt failed — check whether 2FA is the reason.
+      const chk = await fetch("/api/auth/2fa/check", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const cj = (await chk.json().catch(() => ({}))) as { needs2FA?: boolean; error?: string };
+      if (chk.ok && cj.needs2FA) {
+        setNeedCode(true);
+        setError(null);
+      } else if (chk.status === 403) {
+        setError(cj.error ?? "This account has been suspended.");
+      } else {
+        setError("Invalid email or password.");
+      }
+      setLoading(false);
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
@@ -100,6 +132,23 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             required
           />
 
+          {isLogin && needCode ? (
+            <div>
+              <Field
+                label="Authenticator code"
+                type="text"
+                value={code}
+                onChange={(v) => setCode(v.replace(/[^0-9]/g, "").slice(0, 6))}
+                placeholder="123456"
+                autoComplete="one-time-code"
+                required
+              />
+              <p className="mt-1 text-xs text-[var(--color-muted)]">
+                Enter the 6-digit code from your authenticator app.
+              </p>
+            </div>
+          ) : null}
+
           {error ? <div className="text-sm text-[var(--color-down)]">{error}</div> : null}
 
           <button
@@ -108,7 +157,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             className="btn-brand w-full py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-60"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {isLogin ? "Sign in" : "Create account"}
+            {isLogin ? (needCode ? "Verify code" : "Sign in") : "Create account"}
           </button>
         </form>
 

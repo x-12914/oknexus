@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { verifyTotp, decryptSecret } from "@/lib/totp";
 import type { UserRole } from "@prisma/client";
 
 /** The signed-in user's id, or null. Use in route handlers to gate actions. */
@@ -30,7 +31,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: { signIn: "/login" },
   providers: [
     Credentials({
-      credentials: { email: {}, password: {} },
+      credentials: { email: {}, password: {}, code: {} },
       authorize: async (creds) => {
         const email = String(creds?.email ?? "").trim().toLowerCase();
         const password = String(creds?.password ?? "");
@@ -42,6 +43,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) return null;
+
+        // Two-factor: when enabled, a valid current TOTP code is also required.
+        if (user.twoFAEnabled) {
+          const secret = user.twoFASecret ? decryptSecret(user.twoFASecret) : null;
+          if (!secret || !verifyTotp(secret, String(creds?.code ?? ""))) return null;
+        }
 
         return {
           id: user.id,
