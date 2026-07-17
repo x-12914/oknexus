@@ -3,9 +3,21 @@ import { prisma } from "@/lib/db";
 import { withLedger, lock, unlock, settleLocked } from "@/lib/ledger";
 import { getChainAdapter } from "./registry";
 
-// Testnet: the hot wallet pays gas, so the user receives the full amount and we
-// charge no on-ledger network fee. (A real fee schedule slots in here.)
-const WITHDRAW_FEE = 0;
+// Flat network fee per asset, charged on withdrawal and kept by the platform
+// (the hot wallet pays the real on-chain gas). A richer per-chain schedule can
+// slot in here later.
+const WITHDRAW_FEES: Record<string, number> = {
+  ETH: 0.0004,
+  USDT: 1,
+  USDC: 1,
+  SOL: 0.008,
+  BTC: 0.00006,
+};
+
+/** Flat withdrawal fee for an asset (0 if none configured). */
+export function withdrawFee(symbol: string): number {
+  return WITHDRAW_FEES[symbol] ?? 0;
+}
 
 function supportsSymbol(chain: string, symbol: string): boolean {
   const c = getChainAdapter(chain).config;
@@ -31,10 +43,11 @@ export async function requestWithdrawal(
   if (!adapter.validateAddress(toAddress)) throw new Error("Invalid destination address");
   if (!(amount > 0)) throw new Error("Amount must be positive");
 
-  const total = amount + WITHDRAW_FEE;
+  const fee = withdrawFee(symbol);
+  const total = amount + fee;
   return withLedger(async (tx) => {
     const w = await tx.withdrawal.create({
-      data: { userId, chain, symbol, amount, fee: WITHDRAW_FEE, toAddress, status: "REQUESTED" },
+      data: { userId, chain, symbol, amount, fee, toAddress, status: "REQUESTED" },
     });
     await lock(tx, userId, symbol, total, {
       type: LedgerType.WITHDRAWAL,

@@ -7,6 +7,7 @@ import { api } from "@/lib/api-client";
 import { usePolling } from "@/hooks/usePolling";
 import { cn } from "@/lib/utils";
 import { AssetCoin } from "@/components/swap/AssetSelect";
+import { QrCode } from "@/components/custody/QrCode";
 import type { DepositAddressInfo } from "@/lib/custody-types";
 
 export function DepositPanel() {
@@ -110,6 +111,9 @@ export function DepositPanel() {
           <div className="text-xs text-[var(--color-muted)] mb-1">
             Your {chainInfo?.label} deposit address · {chainInfo?.minConfirmations} confirmations to
             credit
+          </div>
+          <div className="my-3 flex justify-center">
+            <QrCode value={shown.address} size={168} />
           </div>
           <div className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2">
             <code className="flex-1 min-w-0 break-all text-sm">{shown.address}</code>

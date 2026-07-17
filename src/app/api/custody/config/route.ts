@@ -1,4 +1,5 @@
 import { listChains, chainLabel } from "@/lib/custody/registry";
+import { withdrawFee } from "@/lib/custody/withdrawals";
 
 export async function GET() {
   const configured = !!process.env.CUSTODY_MNEMONIC;
@@ -10,8 +11,10 @@ export async function GET() {
       minConfirmations: c.minConfirmations,
       assets: [c.nativeSymbol, ...c.tokens.map((t) => t.symbol)],
     }));
-    return Response.json({ configured, chains });
+    const withdrawFees: Record<string, number> = {};
+    for (const c of chains) for (const s of c.assets) withdrawFees[s] = withdrawFee(s);
+    return Response.json({ configured, chains, withdrawFees });
   } catch {
-    return Response.json({ configured: false, chains: [] });
+    return Response.json({ configured: false, chains: [], withdrawFees: {} });
   }
 }

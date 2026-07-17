@@ -231,6 +231,7 @@ enum LedgerType {
   P2P
   DEPOSIT
   WITHDRAWAL
+  TRANSFER
   ADJUSTMENT
 }
 

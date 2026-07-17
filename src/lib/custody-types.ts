@@ -11,6 +11,7 @@ export interface ChainInfo {
 export interface CustodyConfig {
   configured: boolean; // false until the VPS has the custody env set
   chains: ChainInfo[];
+  withdrawFees: Record<string, number>; // flat network fee per asset symbol
 }
 
 export interface DepositAddressInfo {

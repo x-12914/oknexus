@@ -72,6 +72,18 @@ export const api = {
       j<{ activity: LedgerActivity[] }>(r),
     ),
 
+  walletTransfer: (input: { toEmail: string; symbol: string; amount: number; note?: string }) =>
+    fetch("/api/wallet/transfer", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    }).then((r) =>
+      mutate<{ ok: true; symbol: string; amount: number; toEmail: string; toName: string | null }>(
+        r,
+        "Transfer failed",
+      ),
+    ),
+
   custodyConfig: () =>
     fetch("/api/custody/config", { cache: "no-store" }).then((r) => j<CustodyConfig>(r)),
 

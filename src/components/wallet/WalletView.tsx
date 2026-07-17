@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2, ArrowLeftRight, CreditCard, Lock, Download, Upload } from "lucide-react";
+import { Loader2, ArrowLeftRight, CreditCard, Lock, Download, Upload, Send } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { usePolling } from "@/hooks/usePolling";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ const TYPE_LABEL: Record<string, string> = {
   P2P: "P2P trade",
   DEPOSIT: "Deposit",
   WITHDRAWAL: "Withdrawal",
+  TRANSFER: "Transfer",
   ADJUSTMENT: "Adjustment",
 };
 
@@ -48,6 +49,12 @@ export function WalletView() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm hover:bg-[var(--color-surface-2)]"
           >
             <Upload className="h-4 w-4" /> Withdraw
+          </Link>
+          <Link
+            href="/send"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm hover:bg-[var(--color-surface-2)]"
+          >
+            <Send className="h-4 w-4" /> Send
           </Link>
           <Link
             href="/buy"
