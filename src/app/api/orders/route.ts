@@ -8,9 +8,9 @@ const PlaceOrderSchema = z.object({
   pair: z.string().min(3),
   side: z.enum(["BUY", "SELL"]),
   type: z.enum(["MARKET", "LIMIT", "STOP", "STOP_LIMIT"]),
-  quantity: z.number().positive(),
-  price: z.number().positive().optional(),
-  triggerPrice: z.number().positive().optional(),
+  quantity: z.number().positive().finite(),
+  price: z.number().positive().finite().optional(),
+  triggerPrice: z.number().positive().finite().optional(),
 });
 
 export async function POST(req: NextRequest) {

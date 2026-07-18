@@ -2,7 +2,7 @@ import { z } from "zod";
 import { sessionUserId } from "@/lib/auth";
 import { stake, EarnError } from "@/lib/earn";
 
-const Schema = z.object({ symbol: z.string().min(1).max(12), amount: z.number().positive() });
+const Schema = z.object({ symbol: z.string().min(1).max(12), amount: z.number().positive().finite() });
 
 export async function POST(req: Request) {
   const userId = await sessionUserId();

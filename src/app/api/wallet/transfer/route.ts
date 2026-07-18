@@ -5,7 +5,7 @@ import { sendInternalTransfer, TransferError } from "@/lib/transfers";
 const Schema = z.object({
   toEmail: z.string().email(),
   symbol: z.string().min(1).max(12),
-  amount: z.number().positive(),
+  amount: z.number().positive().finite(),
   note: z.string().max(120).optional(),
 });
 

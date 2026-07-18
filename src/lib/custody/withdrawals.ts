@@ -82,37 +82,25 @@ export async function processWithdrawals(chain: string): Promise<ProcessResult> 
     take: 10,
   });
   for (const w of requested) {
-    const total = Number(w.amount) + Number(w.fee);
+    // Atomically CLAIM the row (REQUESTED→BROADCAST) *before* broadcasting, so two
+    // overlapping passes (or a crash-retry) can never send the same withdrawal twice.
+    const claim = await prisma.withdrawal.updateMany({
+      where: { id: w.id, status: "REQUESTED" },
+      data: { status: "BROADCAST" },
+    });
+    if (claim.count === 0) continue; // already claimed by another pass
     try {
       const txHash = await adapter.sendWithdrawal(w.symbol, w.toAddress, Number(w.amount));
-      await prisma.withdrawal.update({
-        where: { id: w.id },
-        data: { status: "BROADCAST", txHash },
-      });
+      await prisma.withdrawal.update({ where: { id: w.id }, data: { txHash } });
       result.broadcast++;
     } catch (e) {
-      // Couldn't broadcast — return the locked funds.
-      const reverted = await withLedger(async (tx) => {
-        const upd = await tx.withdrawal.updateMany({
-          where: { id: w.id, status: "REQUESTED" },
-          data: { status: "FAILED", error: String((e as Error).message).slice(0, 300) },
-        });
-        if (upd.count === 0) return false;
-        await unlock(tx, w.userId, w.symbol, total, {
-          type: LedgerType.WITHDRAWAL,
-          refId: w.id,
-          memo: `Withdraw failed ${w.symbol}`,
-        });
-        return true;
+      // The send threw *after* we claimed — the tx may or may not have reached the
+      // network. Do NOT auto-refund (that risks paying the user twice). Leave it
+      // BROADCAST with no txHash + the error, for manual reconciliation against chain.
+      await prisma.withdrawal.update({
+        where: { id: w.id },
+        data: { error: String((e as Error).message).slice(0, 300) },
       });
-      if (reverted) {
-        await notify(w.userId, {
-          type: "WITHDRAWAL",
-          title: "Withdrawal failed",
-          body: `Your ${Number(w.amount)} ${w.symbol} withdrawal couldn't be sent — the funds were returned to your balance.`,
-          href: "/withdraw",
-        });
-      }
       result.failed++;
     }
   }

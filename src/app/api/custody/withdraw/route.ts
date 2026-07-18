@@ -7,7 +7,7 @@ import { requestWithdrawal } from "@/lib/custody/withdrawals";
 const Schema = z.object({
   chain: z.string().optional(),
   symbol: z.string().min(1),
-  amount: z.number().positive(),
+  amount: z.number().positive().finite(),
   toAddress: z.string().min(6),
 });
 

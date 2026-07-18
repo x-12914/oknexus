@@ -76,15 +76,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = (user as { role?: UserRole }).role;
         token.tokenVersion = (user as { tokenVersion?: number }).tokenVersion ?? 0;
       }
-      // On every request: enforce global revocation + refresh email-verified state.
+      // On every request: enforce global revocation + suspension, and refresh role
+      // + email-verified state so admin demotion / suspension take effect immediately.
       if (token.id) {
         const db = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { tokenVersion: true, emailVerified: true },
+          select: { tokenVersion: true, emailVerified: true, suspended: true, role: true },
         });
         if (!db) return null; // account gone
+        if (db.suspended) return null; // suspended mid-session → force logout
         if (db.tokenVersion !== (token.tokenVersion ?? 0)) return null; // signed out everywhere
         token.emailVerified = Boolean(db.emailVerified);
+        token.role = db.role; // reflect role changes (e.g. admin demotion) on the next request
       }
       return token;
     },

@@ -506,7 +506,7 @@ model Deposit {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([chain, txHash, symbol])
+  @@unique([chain, txHash, symbol, address])
   @@index([userId, createdAt])
   @@index([status])
 }

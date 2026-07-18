@@ -85,6 +85,14 @@ export async function unstake(
     const reward = Number(p.accrued) + pendingReward(p, now.getTime());
     const principal = Number(p.principal);
 
+    // Atomically claim the position (ACTIVE→CLOSED) *before* touching the ledger, so
+    // two concurrent unstakes can't both unlock the principal or credit the reward.
+    const claim = await tx.stakePosition.updateMany({
+      where: { id: p.id, status: "ACTIVE" },
+      data: { status: "CLOSED", accrued: reward, closedAt: now },
+    });
+    if (claim.count === 0) throw new EarnError("Stake not found.");
+
     // Return the locked principal, then credit the accrued yield.
     await unlock(tx, userId, p.symbol, principal, {
       type: LedgerType.STAKE,
@@ -98,10 +106,6 @@ export async function unstake(
         memo: `Staking rewards ${p.symbol}`,
       });
     }
-    await tx.stakePosition.update({
-      where: { id: p.id },
-      data: { status: "CLOSED", accrued: reward, closedAt: now },
-    });
     return { symbol: p.symbol, principal, reward };
   });
 
