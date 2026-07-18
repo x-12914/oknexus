@@ -4,6 +4,7 @@ import ECPairFactory from "ecpair";
 import * as ecc from "tiny-secp256k1";
 import { mnemonicToSeedSync } from "bip39";
 import type { ChainAdapter, ChainConfig, OnChainDeposit } from "./types";
+import { turnkeyConfigured } from "@/lib/turnkey";
 
 bitcoin.initEccLib(ecc);
 const bip32 = BIP32Factory(ecc);
@@ -94,6 +95,13 @@ export class BitcoinAdapter implements ChainAdapter {
 
   async sendWithdrawal(symbol: string, to: string, amount: number): Promise<string> {
     if (symbol !== "BTC") throw new Error(`Unsupported asset for BTC chain: ${symbol}`);
+    if (turnkeyConfigured()) {
+      // Deposits use Turnkey-custodied addresses. Turnkey-signed BTC withdrawals
+      // (async per-input PSBT signing) + a funded testnet hot wallet are still pending.
+      throw new Error(
+        "Turnkey Bitcoin withdrawals aren't enabled yet — pending hot-wallet provisioning and PSBT signing.",
+      );
+    }
     const sats = Math.round(amount * SATS);
     const hot = this.node(0);
     const pay = this.p2wpkh(hot.publicKey);

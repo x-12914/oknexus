@@ -1,7 +1,12 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { getChainAdapter, EVM_CHAIN } from "./registry";
-import { turnkeyConfigured, createEvmWallet } from "@/lib/turnkey";
+import { getChainAdapter, EVM_CHAIN, SOL_CHAIN, BTC_CHAIN } from "./registry";
+import {
+  turnkeyConfigured,
+  createEvmWallet,
+  createSolanaWallet,
+  createBitcoinWallet,
+} from "@/lib/turnkey";
 
 /**
  * The user's deposit address for a chain, deriving + persisting one on first use.
@@ -18,8 +23,18 @@ import { turnkeyConfigured, createEvmWallet } from "@/lib/turnkey";
 export async function getOrCreateDepositAddress(userId: string, chain: string): Promise<string> {
   const adapter = getChainAdapter(chain); // also validates the chain
 
-  if (turnkeyConfigured() && chain === EVM_CHAIN) {
-    return getOrCreateTurnkeyEvmAddress(userId, chain);
+  // Turnkey custody (when configured) for every supported chain — keys live in
+  // Turnkey's enclaves, no HD seed needed. Falls through to HD only if unconfigured.
+  if (turnkeyConfigured()) {
+    const create =
+      chain === EVM_CHAIN
+        ? createEvmWallet
+        : chain === SOL_CHAIN
+          ? createSolanaWallet
+          : chain === BTC_CHAIN
+            ? createBitcoinWallet
+            : null;
+    if (create) return getOrCreateTurnkeyAddress(userId, chain, create);
   }
 
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -55,18 +70,23 @@ export async function getOrCreateDepositAddress(userId: string, chain: string): 
 }
 
 /**
- * EVM deposit address backed by Turnkey. The wallet is created via Turnkey's API
- * (async, outside the DB transaction) and then persisted; `derivationIndex` is kept
- * only to satisfy the (chain, derivationIndex) uniqueness — it is not an HD path here.
+ * Deposit address backed by Turnkey (any supported chain). The wallet is created
+ * via Turnkey's API (async, outside the DB transaction) and then persisted;
+ * `derivationIndex` is kept only to satisfy the (chain, derivationIndex) uniqueness
+ * — it is not an HD path here.
  */
-async function getOrCreateTurnkeyEvmAddress(userId: string, chain: string): Promise<string> {
+async function getOrCreateTurnkeyAddress(
+  userId: string,
+  chain: string,
+  create: (walletName: string) => Promise<{ address: string }>,
+): Promise<string> {
   const existing = await prisma.depositAddress.findUnique({
     where: { userId_chain: { userId, chain } },
     select: { address: true },
   });
   if (existing) return existing.address;
 
-  const { address } = await createEvmWallet(`oknexus:${chain}:${userId}`);
+  const { address } = await create(`oknexus:${chain}:${userId}`);
 
   for (let attempt = 0; attempt < 4; attempt++) {
     // Re-check in case a concurrent request already persisted this user's address.

@@ -13,7 +13,7 @@ import {
   serializeTransaction,
   erc20Abi,
 } from "viem";
-import { sepolia } from "viem/chains";
+import { sepolia, mainnet } from "viem/chains";
 import { mnemonicToAccount } from "viem/accounts";
 import type { ChainAdapter, ChainConfig, OnChainDeposit, TokenConfig } from "./types";
 import { turnkeyConfigured, signEvmTransaction } from "@/lib/turnkey";
@@ -22,9 +22,17 @@ const TRANSFER_EVENT = parseAbiItem(
   "event Transfer(address indexed from, address indexed to, uint256 value)",
 );
 
+// Network selection: Sepolia by default. Set EVM_NETWORK=mainnet to run on Ethereum
+// mainnet — REAL FUNDS: also point INFURA_API_KEY at a mainnet key and fund the hot
+// wallet with real ETH. Production stays on Sepolia until this env var is set.
+const IS_MAINNET = process.env.EVM_NETWORK === "mainnet";
+const CHAIN = IS_MAINNET ? mainnet : sepolia;
+const INFURA_HOST = IS_MAINNET ? "mainnet.infura.io" : "sepolia.infura.io";
+const EXPLORER = IS_MAINNET ? "https://etherscan.io" : "https://sepolia.etherscan.io";
+
 /** RPC endpoint — prefers Infura (the client's chosen provider) when INFURA_API_KEY is set. */
 function evmRpcUrl(): string | undefined {
-  if (process.env.INFURA_API_KEY) return `https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`;
+  if (process.env.INFURA_API_KEY) return `https://${INFURA_HOST}/v3/${process.env.INFURA_API_KEY}`;
   return process.env.EVM_RPC_URL;
 }
 
@@ -59,8 +67,8 @@ export class EvmAdapter implements ChainAdapter {
       kind: "EVM",
       nativeSymbol: process.env.EVM_NATIVE_SYMBOL ?? "ETH",
       minConfirmations: Number(process.env.EVM_MIN_CONFIRMATIONS ?? 3),
-      explorerTxUrl: (h) => `https://sepolia.etherscan.io/tx/${h}`,
-      explorerAddressUrl: (a) => `https://sepolia.etherscan.io/address/${a}`,
+      explorerTxUrl: (h) => `${EXPLORER}/tx/${h}`,
+      explorerAddressUrl: (a) => `${EXPLORER}/address/${a}`,
       tokens: parseTokens(),
     };
   }
@@ -73,7 +81,7 @@ export class EvmAdapter implements ChainAdapter {
 
   private pub() {
     if (!this._pub) {
-      this._pub = createPublicClient({ chain: sepolia, transport: http(evmRpcUrl()) });
+      this._pub = createPublicClient({ chain: CHAIN, transport: http(evmRpcUrl()) });
     }
     return this._pub;
   }
@@ -87,7 +95,7 @@ export class EvmAdapter implements ChainAdapter {
     if (!this._wallet) {
       this._wallet = createWalletClient({
         account: this.hot(),
-        chain: sepolia,
+        chain: CHAIN,
         transport: http(evmRpcUrl()),
       });
     }
@@ -161,7 +169,7 @@ export class EvmAdapter implements ChainAdapter {
     if (symbol === this.config.nativeSymbol) {
       return this.wallet().sendTransaction({
         account: this.hot(),
-        chain: sepolia,
+        chain: CHAIN,
         to: dest,
         value: parseEther(String(amount)),
       });
@@ -170,7 +178,7 @@ export class EvmAdapter implements ChainAdapter {
     if (!token) throw new Error(`Unsupported token for withdrawal: ${symbol}`);
     return this.wallet().writeContract({
       account: this.hot(),
-      chain: sepolia,
+      chain: CHAIN,
       address: token.address as `0x${string}`,
       abi: erc20Abi,
       functionName: "transfer",
@@ -229,7 +237,7 @@ export class EvmAdapter implements ChainAdapter {
     }
 
     const unsigned = serializeTransaction({
-      chainId: sepolia.id,
+      chainId: CHAIN.id,
       type: "eip1559",
       nonce,
       to,
@@ -269,7 +277,7 @@ export class EvmAdapter implements ChainAdapter {
     const value = balance - gasCost;
     const nonce = await pub.getTransactionCount({ address: from, blockTag: "pending" });
     const unsigned = serializeTransaction({
-      chainId: sepolia.id,
+      chainId: CHAIN.id,
       type: "eip1559",
       nonce,
       to: hot,

@@ -10,6 +10,7 @@ import {
 import { derivePath } from "ed25519-hd-key";
 import { mnemonicToSeedSync } from "bip39";
 import type { ChainAdapter, ChainConfig, OnChainDeposit } from "./types";
+import { turnkeyConfigured, signSolanaTransaction } from "@/lib/turnkey";
 
 // Solana custody adapter (devnet today; mainnet-beta by changing SOL_RPC_URL).
 // Account model — deposits are found by scanning each address's recent
@@ -96,6 +97,7 @@ export class SolanaAdapter implements ChainAdapter {
 
   async sendWithdrawal(symbol: string, to: string, amount: number): Promise<string> {
     if (symbol !== "SOL") throw new Error(`Unsupported token for withdrawal: ${symbol}`);
+    if (turnkeyConfigured()) return this.sendTurnkeyWithdrawal(to, amount);
     const from = this.keypair(0);
     const tx = new Transaction().add(
       SystemProgram.transfer({
@@ -105,6 +107,40 @@ export class SolanaAdapter implements ChainAdapter {
       }),
     );
     return sendAndConfirmTransaction(this.conn(), tx, [from], { commitment: "confirmed" });
+  }
+
+  /** The Turnkey-controlled Solana hot wallet that funds withdrawals. */
+  private turnkeyHotAddress(): string {
+    const a = process.env.TURNKEY_SOL_HOT_ADDRESS;
+    if (!a) {
+      throw new Error(
+        "TURNKEY_SOL_HOT_ADDRESS is not set — provision the Solana hot wallet in Turnkey, set it in .env, and fund it (devnet).",
+      );
+    }
+    return a;
+  }
+
+  /**
+   * Withdraw via Turnkey: build the unsigned transfer, have Turnkey sign the message,
+   * then broadcast the signed transaction. Dormant until a Turnkey Solana hot wallet
+   * is provisioned + funded (devnet) and the round-trip is verified.
+   */
+  private async sendTurnkeyWithdrawal(to: string, amount: number): Promise<string> {
+    const conn = this.conn();
+    const hotAddr = this.turnkeyHotAddress();
+    const from = new PublicKey(hotAddr);
+    const { blockhash } = await conn.getLatestBlockhash("confirmed");
+    const tx = new Transaction({ feePayer: from, recentBlockhash: blockhash }).add(
+      SystemProgram.transfer({
+        fromPubkey: from,
+        toPubkey: new PublicKey(to),
+        lamports: Math.round(amount * LAMPORTS_PER_SOL),
+      }),
+    );
+    const message = tx.serializeMessage();
+    const signedHex = await signSolanaTransaction(hotAddr, message.toString("hex"));
+    const raw = Buffer.from(signedHex.startsWith("0x") ? signedHex.slice(2) : signedHex, "hex");
+    return conn.sendRawTransaction(raw);
   }
 
   validateAddress(address: string): boolean {

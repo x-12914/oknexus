@@ -35,6 +35,7 @@ export function listChains(): ChainConfig[] {
 
 export function chainLabel(chain: string): string {
   if (chain.includes("sepolia")) return "Ethereum Sepolia";
+  if (chain.includes("ethereum")) return "Ethereum";
   if (chain.includes("solana")) return "Solana Devnet";
   if (chain.includes("bitcoin")) return "Bitcoin Testnet";
   return chain;

@@ -1,8 +1,9 @@
 import { listChains, chainLabel } from "@/lib/custody/registry";
 import { withdrawFee } from "@/lib/custody/withdrawals";
+import { turnkeyConfigured } from "@/lib/turnkey";
 
 export async function GET() {
-  const configured = !!process.env.CUSTODY_MNEMONIC;
+  const configured = turnkeyConfigured() || !!process.env.CUSTODY_MNEMONIC;
   try {
     const chains = listChains().map((c) => ({
       chain: c.chain,

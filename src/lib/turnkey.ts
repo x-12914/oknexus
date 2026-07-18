@@ -1,5 +1,15 @@
 import "server-only";
-import { Turnkey, DEFAULT_ETHEREUM_ACCOUNTS } from "@turnkey/sdk-server";
+import { Turnkey, DEFAULT_ETHEREUM_ACCOUNTS, DEFAULT_SOLANA_ACCOUNTS } from "@turnkey/sdk-server";
+
+// Bitcoin testnet native-segwit (BIP-84, P2WPKH) account for Turnkey wallet creation.
+const BITCOIN_TESTNET_ACCOUNTS = [
+  {
+    curve: "CURVE_SECP256K1",
+    pathFormat: "PATH_FORMAT_BIP32",
+    path: "m/84'/1'/0'/0/0",
+    addressFormat: "ADDRESS_FORMAT_BITCOIN_TESTNET_P2WPKH",
+  },
+] as const;
 
 /**
  * Turnkey custody client (server-only). Turnkey holds the private keys in secure
@@ -53,6 +63,45 @@ export async function createEvmWallet(
   const address = res.addresses[0];
   if (!address) throw new Error("Turnkey createWallet returned no address");
   return { walletId: res.walletId, address };
+}
+
+/** Create a custodial Solana wallet (ed25519); returns its id + base58 address. */
+export async function createSolanaWallet(
+  walletName: string,
+): Promise<{ walletId: string; address: string }> {
+  const res = await apiClient().createWallet({
+    walletName,
+    accounts: DEFAULT_SOLANA_ACCOUNTS,
+  });
+  const address = res.addresses[0];
+  if (!address) throw new Error("Turnkey createWallet returned no Solana address");
+  return { walletId: res.walletId, address };
+}
+
+/** Create a custodial Bitcoin (testnet, native segwit) wallet; returns its id + tb1 address. */
+export async function createBitcoinWallet(
+  walletName: string,
+): Promise<{ walletId: string; address: string }> {
+  const res = await apiClient().createWallet({
+    walletName,
+    accounts: BITCOIN_TESTNET_ACCOUNTS as unknown as typeof DEFAULT_ETHEREUM_ACCOUNTS,
+  });
+  const address = res.addresses[0];
+  if (!address) throw new Error("Turnkey createWallet returned no Bitcoin address");
+  return { walletId: res.walletId, address };
+}
+
+/** Sign an unsigned Solana transaction (hex message) with a custodial address. */
+export async function signSolanaTransaction(
+  signWith: string,
+  unsignedTransaction: string,
+): Promise<string> {
+  const res = await apiClient().signTransaction({
+    signWith,
+    unsignedTransaction,
+    type: "TRANSACTION_TYPE_SOLANA",
+  });
+  return res.signedTransaction;
 }
 
 /** Sign an unsigned EVM transaction (hex, no 0x) with a custodial address. */
