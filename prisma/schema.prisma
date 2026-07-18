@@ -46,6 +46,7 @@ model User {
   loginEvents   LoginEvent[]
   notifications Notification[]
   priceAlerts   PriceAlert[]
+  stakes        StakePosition[]
 
   depositAddresses DepositAddress[]
   deposits         Deposit[]
@@ -238,6 +239,7 @@ enum LedgerType {
   DEPOSIT
   WITHDRAWAL
   TRANSFER
+  STAKE
   ADJUSTMENT
 }
 
@@ -462,6 +464,25 @@ model PriceAlert {
 
   @@index([triggered])
   @@index([userId, createdAt])
+}
+
+/// Flexible-staking positions: principal locked in the ledger, rewards accrue at an APY.
+model StakePosition {
+  id          String    @id @default(cuid())
+  userId      String
+  symbol      String // staked asset, e.g. "ETH"
+  principal   Decimal   @db.Decimal(30, 10)
+  apy         Decimal   @db.Decimal(10, 4) // annual % at stake time
+  accrued     Decimal   @default(0) @db.Decimal(30, 10) // rewards accrued so far, in the staked asset
+  status      String    @default("ACTIVE") // ACTIVE | CLOSED
+  createdAt   DateTime  @default(now())
+  lastAccrued DateTime  @default(now()) // cursor for incremental reward accrual
+  closedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([status])
 }
 
 enum DepositStatus {

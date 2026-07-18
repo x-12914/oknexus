@@ -31,6 +31,7 @@ import type { Portfolio, LedgerActivity } from "@/lib/wallet-types";
 import type { NotificationView } from "@/lib/notification-types";
 import type { Analytics } from "@/lib/analytics-types";
 import type { PriceAlertView } from "@/lib/price-alert-types";
+import type { EarnData, StakeView } from "@/lib/earn-types";
 import type {
   CustodyConfig,
   DepositAddressInfo,
@@ -93,6 +94,24 @@ export const api = {
   deleteAlert: (id: string) =>
     fetch(`/api/alerts/${id}`, { method: "DELETE" }).then((r) =>
       mutate<{ ok: true }>(r, "Could not delete the alert"),
+    ),
+
+  earn: () => fetch("/api/earn", { cache: "no-store" }).then((r) => j<EarnData>(r)),
+
+  stake: (symbol: string, amount: number) =>
+    fetch("/api/earn/stake", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ symbol, amount }),
+    }).then((r) => mutate<StakeView>(r, "Could not stake")),
+
+  unstake: (id: string) =>
+    fetch("/api/earn/unstake", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).then((r) =>
+      mutate<{ ok: true; symbol: string; principal: number; reward: number }>(r, "Could not unstake"),
     ),
 
   walletTransfer: (input: { toEmail: string; symbol: string; amount: number; note?: string }) =>

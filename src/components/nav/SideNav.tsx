@@ -12,6 +12,7 @@ import {
   Wallet,
   BarChart3,
   BellRing,
+  PiggyBank,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/Logo";
@@ -24,6 +25,7 @@ const NAV = [
   { href: "/swap", label: "Instant Swap", icon: ArrowLeftRight },
   { href: "/otc", label: "OTC Desk", icon: Briefcase },
   { href: "/buy", label: "Buy & Sell", icon: CreditCard },
+  { href: "/earn", label: "Earn", icon: PiggyBank },
   { href: "/p2p", label: "P2P Trading", icon: Users },
   { href: "/alerts", label: "Price Alerts", icon: BellRing },
 ] as const;

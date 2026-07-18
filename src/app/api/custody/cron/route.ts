@@ -5,6 +5,7 @@ import { sweepChain } from "@/lib/custody/sweep";
 import { processWithdrawals } from "@/lib/custody/withdrawals";
 import { processStopTriggers } from "@/lib/orders";
 import { processPriceAlerts } from "@/lib/price-alerts";
+import { accrueStakes } from "@/lib/earn";
 
 // Driven by a system cron on the VPS (every ~minute) with a bearer secret.
 // Runs one deposit-scan + withdrawal-processing pass per chain. Idempotent, and
@@ -17,9 +18,10 @@ export async function POST(req: NextRequest) {
   // Stop-order triggers + price alerts run regardless of custody config (prices only).
   const stops = await processStopTriggers().catch((e) => ({ error: (e as Error).message }));
   const alerts = await processPriceAlerts().catch((e) => ({ error: (e as Error).message }));
+  const staking = await accrueStakes().catch((e) => ({ error: (e as Error).message }));
 
   if (!process.env.CUSTODY_MNEMONIC) {
-    return Response.json({ ok: true, stops, alerts, reason: "custody not configured" });
+    return Response.json({ ok: true, stops, alerts, staking, reason: "custody not configured" });
   }
 
   const chains: Record<string, unknown> = {};
@@ -33,5 +35,5 @@ export async function POST(req: NextRequest) {
       chains[chain] = { error: (e as Error).message };
     }
   }
-  return Response.json({ ok: true, stops, chains });
+  return Response.json({ ok: true, stops, alerts, staking, chains });
 }
