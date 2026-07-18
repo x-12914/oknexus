@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Wallet,
   BarChart3,
+  BellRing,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/Logo";
@@ -24,6 +25,7 @@ const NAV = [
   { href: "/otc", label: "OTC Desk", icon: Briefcase },
   { href: "/buy", label: "Buy & Sell", icon: CreditCard },
   { href: "/p2p", label: "P2P Trading", icon: Users },
+  { href: "/alerts", label: "Price Alerts", icon: BellRing },
 ] as const;
 
 export function SideNav() {

@@ -45,6 +45,7 @@ model User {
   p2pAds        P2PAd[]
   loginEvents   LoginEvent[]
   notifications Notification[]
+  priceAlerts   PriceAlert[]
 
   depositAddresses DepositAddress[]
   deposits         Deposit[]
@@ -444,6 +445,23 @@ model Notification {
 
   @@index([userId, createdAt])
   @@index([userId, read])
+}
+
+/// User-set price alerts: notify when an asset crosses a target price (USD).
+model PriceAlert {
+  id          String    @id @default(cuid())
+  userId      String
+  symbol      String // base asset, e.g. "BTC"
+  direction   String // ABOVE | BELOW
+  target      Decimal   @db.Decimal(30, 10)
+  triggered   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  triggeredAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([triggered])
+  @@index([userId, createdAt])
 }
 
 enum DepositStatus {

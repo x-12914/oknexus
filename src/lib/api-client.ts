@@ -30,6 +30,7 @@ import type {
 import type { Portfolio, LedgerActivity } from "@/lib/wallet-types";
 import type { NotificationView } from "@/lib/notification-types";
 import type { Analytics } from "@/lib/analytics-types";
+import type { PriceAlertView } from "@/lib/price-alert-types";
 import type {
   CustodyConfig,
   DepositAddressInfo,
@@ -76,6 +77,23 @@ export const api = {
 
   analytics: () =>
     fetch("/api/analytics", { cache: "no-store" }).then((r) => j<Analytics>(r)),
+
+  alerts: () =>
+    fetch("/api/alerts", { cache: "no-store" }).then((r) =>
+      j<{ alerts: PriceAlertView[]; prices: Record<string, number> }>(r),
+    ),
+
+  createAlert: (symbol: string, target: number) =>
+    fetch("/api/alerts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ symbol, target }),
+    }).then((r) => mutate<PriceAlertView>(r, "Could not create the alert")),
+
+  deleteAlert: (id: string) =>
+    fetch(`/api/alerts/${id}`, { method: "DELETE" }).then((r) =>
+      mutate<{ ok: true }>(r, "Could not delete the alert"),
+    ),
 
   walletTransfer: (input: { toEmail: string; symbol: string; amount: number; note?: string }) =>
     fetch("/api/wallet/transfer", {
