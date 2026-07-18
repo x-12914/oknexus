@@ -2,8 +2,9 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
-import { verifyTotp, decryptSecret } from "@/lib/totp";
+import { verifyTotpOnce, decryptSecret } from "@/lib/totp";
 import { recordLogin, clientIp } from "@/lib/login-history";
+import { rateLimit, resetRateLimit } from "@/lib/rate-limit";
 import type { UserRole } from "@prisma/client";
 
 /** The signed-in user's id, or null. Use in route handlers to gate actions. */
@@ -38,6 +39,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const password = String(creds?.password ?? "");
         if (!email || !password) return null;
 
+        const headers = request instanceof Request ? request.headers : undefined;
+        const ip = headers ? clientIp(headers) : null;
+
+        // Throttle login attempts per email+IP. Because a wrong 2FA code re-enters
+        // authorize, this also caps online TOTP brute-force (the 2FA-bypass vector).
+        const rlKey = `login:${email}:${ip ?? "?"}`;
+        if (!rateLimit(rlKey, { max: 8, windowMs: 900_000, lockoutMs: 900_000 }).allowed) {
+          throw new Error("Too many attempts. Please try again later.");
+        }
+
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user?.passwordHash) return null;
         if (user.suspended) throw new Error("This account has been suspended.");
@@ -45,19 +56,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) return null;
 
-        // Two-factor: when enabled, a valid current TOTP code is also required.
+        // Two-factor: when enabled, a valid, not-yet-used current TOTP code is required.
         if (user.twoFAEnabled) {
           const secret = user.twoFASecret ? decryptSecret(user.twoFASecret) : null;
-          if (!secret || !verifyTotp(secret, String(creds?.code ?? ""))) return null;
+          if (!secret || !verifyTotpOnce(user.id, secret, String(creds?.code ?? ""))) return null;
         }
 
-        // Record the successful sign-in for the account's login history.
-        const headers = request instanceof Request ? request.headers : undefined;
-        await recordLogin(
-          user.id,
-          headers ? clientIp(headers) : null,
-          headers?.get("user-agent") ?? null,
-        );
+        // Full success — clear the throttle so earlier typos don't penalise the user.
+        resetRateLimit(rlKey);
+        await recordLogin(user.id, ip, headers?.get("user-agent") ?? null);
 
         return {
           id: user.id,

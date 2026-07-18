@@ -9,6 +9,17 @@ import { prisma } from "@/lib/db";
 
 type Tx = Prisma.TransactionClient;
 
+/**
+ * Round a user-supplied amount DOWN to `decimals` places (default 8, within the
+ * ledger's Decimal(30,10) precision). Prevents sub-dust rounding abuse and rejects
+ * amounts finer than an asset can hold; a sub-precision value floors to 0 and is then
+ * caught by the caller's `amount > 0` guard.
+ */
+export function quantize(amount: number, decimals = 8): number {
+  const f = 10 ** decimals;
+  return Math.floor(amount * f) / f;
+}
+
 export class InsufficientBalanceError extends Error {
   readonly symbol?: string;
   constructor(symbol?: string) {

@@ -1,6 +1,6 @@
 import { LedgerType, type Withdrawal } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { withLedger, lock, unlock, settleLocked } from "@/lib/ledger";
+import { withLedger, lock, unlock, settleLocked, quantize } from "@/lib/ledger";
 import { notify } from "@/lib/notifications";
 import { getChainAdapter } from "./registry";
 
@@ -42,6 +42,7 @@ export async function requestWithdrawal(
     throw new Error(`Withdrawals for ${symbol} aren't supported on ${chain}`);
   }
   if (!adapter.validateAddress(toAddress)) throw new Error("Invalid destination address");
+  amount = quantize(amount);
   if (!(amount > 0)) throw new Error("Amount must be positive");
 
   const fee = withdrawFee(symbol);

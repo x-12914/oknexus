@@ -2,7 +2,7 @@ import "server-only";
 import crypto from "crypto";
 import { LedgerType } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { withLedger, credit, debit, InsufficientBalanceError } from "@/lib/ledger";
+import { withLedger, credit, debit, quantize, InsufficientBalanceError } from "@/lib/ledger";
 import { notify } from "@/lib/notifications";
 
 /** A user-facing problem with a transfer (bad recipient, insufficient funds, …). */
@@ -29,6 +29,7 @@ export async function sendInternalTransfer(
 ): Promise<TransferResult> {
   const toEmail = toEmailRaw.trim().toLowerCase();
   if (!toEmail) throw new TransferError("Enter the recipient's email.");
+  amount = quantize(amount);
   if (!(amount > 0)) throw new TransferError("Enter an amount greater than zero.");
 
   const [sender, recipient] = await Promise.all([

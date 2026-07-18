@@ -3,19 +3,16 @@ import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { sendEmail } from "./email";
 import { appUrl } from "./email-verify";
+import { deriveKey } from "@/lib/keys";
 
 // Stateless, single-use password-reset tokens. The HMAC is taken over
 // `userId:passwordHash:expiry`, so the moment the password changes the old token
 // stops validating — no token table needed. Valid for 30 minutes.
 const TTL_MS = 1000 * 60 * 30;
 
-function secret(): string {
-  return process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? "insecure-dev-secret";
-}
-
 function sign(userId: string, passwordHash: string, exp: number): string {
   return crypto
-    .createHmac("sha256", secret())
+    .createHmac("sha256", deriveKey("password-reset"))
     .update(`${userId}:${passwordHash}:${exp}`)
     .digest("base64url");
 }

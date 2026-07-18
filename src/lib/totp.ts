@@ -26,13 +26,34 @@ export function verifyTotp(secret: string, code: string): boolean {
   }
 }
 
+// --- Single-use guard: reject replay of a TOTP code within its validity window ---
+const usedCodes = new Map<string, number>(); // `${userId}:${code}` -> expiry ms
+let lastUsedSweep = 0;
+
+/** Verify a code AND ensure it hasn't already been used for this user (anti-replay). */
+export function verifyTotpOnce(userId: string, secret: string, code: string): boolean {
+  if (!verifyTotp(secret, code)) return false;
+  const now = Date.now();
+  if (now - lastUsedSweep > 120_000) {
+    lastUsedSweep = now;
+    for (const [k, exp] of usedCodes) if (exp < now) usedCodes.delete(k);
+  }
+  const key = `${userId}:${String(code).replace(/\s+/g, "")}`;
+  if ((usedCodes.get(key) ?? 0) > now) return false; // already consumed within the window
+  usedCodes.set(key, now + 90_000);
+  return true;
+}
+
 export function totpQrDataUri(keyUri: string): Promise<string> {
   return QRCode.toDataURL(keyUri, { margin: 1, width: 220 });
 }
 
 // --- Encrypt the TOTP secret at rest (AES-256-GCM, key derived from AUTH_SECRET) ---
 function encKey(): Buffer {
-  const s = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? "insecure-dev-secret";
+  // Keep the sha256(AUTH_SECRET) derivation (changing it would orphan existing
+  // encrypted secrets) but fail closed rather than fall back to a known default.
+  const s = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+  if (!s) throw new Error("AUTH_SECRET is not set");
   return crypto.createHash("sha256").update(s).digest();
 }
 

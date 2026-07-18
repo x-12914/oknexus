@@ -75,6 +75,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
       if (chk.ok && cj.needs2FA) {
         setNeedCode(true);
         setError(null);
+      } else if (chk.status === 429) {
+        setError(cj.error ?? "Too many attempts. Please try again later.");
       } else if (chk.status === 403) {
         setError(cj.error ?? "This account has been suspended.");
       } else {

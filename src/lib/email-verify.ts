@@ -1,17 +1,14 @@
 import "server-only";
 import crypto from "crypto";
 import { sendEmail } from "./email";
+import { deriveKey } from "@/lib/keys";
 
 // Stateless email-verification tokens: an HMAC over `userId:expiry` signed with
 // AUTH_SECRET, so no token table is needed. Valid for 24 hours.
 const TTL_MS = 1000 * 60 * 60 * 24;
 
-function secret(): string {
-  return process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? "insecure-dev-secret";
-}
-
 function sign(payload: string): string {
-  return crypto.createHmac("sha256", secret()).update(payload).digest("base64url");
+  return crypto.createHmac("sha256", deriveKey("email-verify")).update(payload).digest("base64url");
 }
 
 export function appUrl(): string {

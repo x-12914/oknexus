@@ -2,7 +2,7 @@ import "server-only";
 import { LedgerType, type StakePosition } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getExchange } from "@/lib/exchange";
-import { withLedger, lock, unlock, credit, InsufficientBalanceError } from "@/lib/ledger";
+import { withLedger, lock, unlock, credit, quantize, InsufficientBalanceError } from "@/lib/ledger";
 import { notify } from "@/lib/notifications";
 import type { EarnData, EarnProduct, StakeView } from "@/lib/earn-types";
 
@@ -54,6 +54,7 @@ export async function stake(userId: string, symbolRaw: string, amount: number): 
   const symbol = symbolRaw.trim().toUpperCase();
   const apy = APY_OF.get(symbol);
   if (apy == null) throw new EarnError("This asset isn't available to stake.");
+  amount = quantize(amount);
   if (!(amount > 0)) throw new EarnError("Enter an amount greater than zero.");
 
   try {

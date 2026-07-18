@@ -3,6 +3,8 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { readResetToken } from "@/lib/password-reset";
+import { clientIp } from "@/lib/login-history";
+import { rateLimit } from "@/lib/rate-limit";
 
 const Schema = z.object({
   token: z.string().min(10),
@@ -10,6 +12,16 @@ const Schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  if (
+    !rateLimit(`reset:${clientIp(req.headers) ?? "?"}`, {
+      max: 10,
+      windowMs: 900_000,
+      lockoutMs: 900_000,
+    }).allowed
+  ) {
+    return Response.json({ error: "Too many attempts. Please try again later." }, { status: 429 });
+  }
+
   let body: unknown;
   try {
     body = await req.json();
