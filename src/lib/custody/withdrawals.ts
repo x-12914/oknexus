@@ -2,6 +2,7 @@ import { LedgerType, type Withdrawal } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { withLedger, lock, unlock, settleLocked, quantize } from "@/lib/ledger";
 import { notify } from "@/lib/notifications";
+import { getExchange } from "@/lib/exchange";
 import { getChainAdapter } from "./registry";
 
 // Flat network fee per asset, charged on withdrawal and kept by the platform
@@ -18,6 +19,57 @@ const WITHDRAW_FEES: Record<string, number> = {
 /** Flat withdrawal fee for an asset (0 if none configured). */
 export function withdrawFee(symbol: string): number {
   return WITHDRAW_FEES[symbol] ?? 0;
+}
+
+export class DailyLimitError extends Error {}
+
+// Rolling-24h withdrawal cap in USD (0 / unset = no limit).
+const DAILY_LIMIT_USD = Number(process.env.WITHDRAW_DAILY_USD_LIMIT ?? 50000);
+
+export interface DailyLimitStatus {
+  limitUsd: number;
+  usedUsd: number;
+  remainingUsd: number;
+}
+
+async function usdPriceMap(): Promise<Map<string, number>> {
+  const assets = await getExchange().listSwapAssets();
+  const m = new Map<string, number>(assets.map((a) => [a.symbol, a.usdtPrice]));
+  m.set("USDT", 1);
+  return m;
+}
+
+/** The user's non-failed withdrawal usage over the last 24h vs the configured cap. */
+export async function dailyLimitStatus(userId: string): Promise<DailyLimitStatus> {
+  const since = new Date(Date.now() - 24 * 3600 * 1000);
+  const [rows, prices] = await Promise.all([
+    prisma.withdrawal.findMany({
+      where: { userId, status: { not: "FAILED" }, createdAt: { gte: since } },
+      select: { symbol: true, amount: true },
+    }),
+    usdPriceMap(),
+  ]);
+  const usedUsd = rows.reduce((s, r) => s + Number(r.amount) * (prices.get(r.symbol) ?? 0), 0);
+  return { limitUsd: DAILY_LIMIT_USD, usedUsd, remainingUsd: Math.max(0, DAILY_LIMIT_USD - usedUsd) };
+}
+
+/** Throw DailyLimitError if this withdrawal would push the rolling-24h total over the cap. */
+export async function assertWithinDailyLimit(
+  userId: string,
+  symbol: string,
+  amount: number,
+): Promise<void> {
+  if (!(DAILY_LIMIT_USD > 0)) return;
+  const [{ usedUsd, remainingUsd }, prices] = await Promise.all([
+    dailyLimitStatus(userId),
+    usdPriceMap(),
+  ]);
+  const thisUsd = amount * (prices.get(symbol) ?? 0);
+  if (usedUsd + thisUsd > DAILY_LIMIT_USD) {
+    throw new DailyLimitError(
+      `Daily withdrawal limit reached — about $${remainingUsd.toFixed(0)} left in the next 24h.`,
+    );
+  }
 }
 
 function supportsSymbol(chain: string, symbol: string): boolean {

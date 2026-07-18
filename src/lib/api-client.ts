@@ -149,12 +149,26 @@ export const api = {
   custodyHistory: () =>
     fetch("/api/custody/history", { cache: "no-store" }).then((r) => j<CustodyHistory>(r)),
 
-  custodyWithdraw: (chain: string, symbol: string, amount: number, toAddress: string) =>
+  custodyWithdraw: (
+    chain: string,
+    symbol: string,
+    amount: number,
+    toAddress: string,
+    code?: string,
+  ) =>
     fetch("/api/custody/withdraw", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chain, symbol, amount, toAddress }),
+      body: JSON.stringify({ chain, symbol, amount, toAddress, code }),
     }).then((r) => mutate<{ id: string; status: string }>(r, "Withdrawal failed")),
+
+  withdrawStatus: () =>
+    fetch("/api/custody/withdraw", { cache: "no-store" }).then((r) =>
+      j<{
+        needs2FA: boolean;
+        limit: { limitUsd: number; usedUsd: number; remainingUsd: number } | null;
+      }>(r),
+    ),
 
   markets: () =>
     fetch("/api/markets", { cache: "no-store" }).then((r) =>

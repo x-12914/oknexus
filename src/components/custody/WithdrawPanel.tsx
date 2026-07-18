@@ -24,6 +24,7 @@ export function WithdrawPanel() {
   const { data: config } = usePolling(() => api.custodyConfig(), 60000, []);
   const { data: wallet } = usePolling(() => api.wallet(), 8000, []);
   const { data: history, refresh } = usePolling(() => api.custodyHistory(), 8000, []);
+  const { data: wstatus, refresh: refreshStatus } = usePolling(() => api.withdrawStatus(), 30000, []);
 
   const chains = config?.chains ?? [];
   const [chain, setChain] = useState("");
@@ -41,6 +42,7 @@ export function WithdrawPanel() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
+  const [code, setCode] = useState("");
 
   const balance = wallet?.items.find((i) => i.symbol === symbol)?.balance ?? 0;
   const amountNum = Number(amount);
@@ -49,7 +51,15 @@ export function WithdrawPanel() {
   const notConfigured = config && !config.configured;
   const insufficient = total > balance;
   const withdrawals = history?.withdrawals ?? [];
-  const canSubmit = amountNum > 0 && !!to && !insufficient && !submitting && !notConfigured && !!chain;
+  const needCode = !!wstatus?.needs2FA;
+  const canSubmit =
+    amountNum > 0 &&
+    !!to &&
+    !insufficient &&
+    !submitting &&
+    !notConfigured &&
+    !!chain &&
+    (!needCode || code.length === 6);
 
   const submit = async () => {
     setError(null);
@@ -58,11 +68,13 @@ export function WithdrawPanel() {
     if (!to) return setError("Enter a destination address");
     setSubmitting(true);
     try {
-      await api.custodyWithdraw(chain, symbol, amountNum, to.trim());
+      await api.custodyWithdraw(chain, symbol, amountNum, to.trim(), needCode ? code : undefined);
       setOk("Withdrawal requested — broadcasting on-chain.");
       setAmount("");
       setTo("");
+      setCode("");
       refresh();
+      refreshStatus();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -92,6 +104,15 @@ export function WithdrawPanel() {
         </div>
       ) : (
         <div className="rounded-2xl glass p-4 space-y-3">
+          {wstatus?.limit && wstatus.limit.limitUsd > 0 ? (
+            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-xs text-[var(--color-muted)]">
+              Daily limit ·{" "}
+              <span className="tabular-nums text-[var(--color-foreground)]">
+                ${Math.round(wstatus.limit.remainingUsd).toLocaleString()}
+              </span>{" "}
+              of ${Math.round(wstatus.limit.limitUsd).toLocaleString()} left (rolling 24h)
+            </div>
+          ) : null}
           {/* Network */}
           <div>
             <div className="text-xs text-[var(--color-muted)] mb-1.5">Network</div>
@@ -196,6 +217,24 @@ export function WithdrawPanel() {
                   {fmtQty(total)} {symbol}
                 </span>
               </div>
+            </div>
+          ) : null}
+
+          {needCode ? (
+            <div>
+              <div className="text-xs text-[var(--color-muted)] mb-1">Authenticator code</div>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+                placeholder="123456"
+                autoComplete="one-time-code"
+                className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2.5 text-sm tabular-nums outline-none focus:border-[var(--color-accent)]"
+              />
+              <p className="mt-1 text-[10px] text-[var(--color-muted)]">
+                2FA is on — enter your current code to confirm this withdrawal.
+              </p>
             </div>
           ) : null}
 
