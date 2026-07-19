@@ -31,32 +31,34 @@ const ROADMAP: Feature[] = [
   { icon: Coins, title: "OKN Native Token", desc: "One token, unlimited possibilities — the native token at the center of the ecosystem." },
 ];
 
-const SUB = "We're steadily expanding the ecosystem beyond trading — here's what's landing next.";
+const SUB = "Discover our upcoming products and innovations designed to expand your financial possibilities.";
 
 export function ComingSoonSection() {
   return (
-    <section id="coming-soon" className="mx-auto max-w-6xl px-4 py-16 md:py-24">
+    <section id="explore" className="mx-auto max-w-6xl px-4 py-16 md:py-24 overflow-hidden">
       <div className="max-w-2xl">
         <span
           className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium"
           style={{ color: GOLD, backgroundColor: GOLD_BG, borderColor: GOLD_BORDER }}
         >
           <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: GOLD }} />
-          On the roadmap
+          Explore
         </span>
         <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white [text-wrap:balance] md:text-4xl">
-          More ways to move, coming to Oknexus.
+          Upcoming Products & Innovations
         </h2>
         <p className="mt-4 leading-relaxed text-[var(--color-muted)]">{SUB}</p>
       </div>
 
       <Reveal>
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {ROADMAP.map((f) => (
-            <div
-              key={f.title}
-              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 p-6"
-            >
+        <div className="relative mt-12">
+          {/* Horizontal scroll container */}
+          <div className="-mx-4 flex gap-5 overflow-x-auto px-4 pb-8 pt-4 snap-x snap-mandatory sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            {ROADMAP.map((f) => (
+              <div
+                key={f.title}
+                className="w-[85vw] sm:w-[340px] shrink-0 snap-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 p-6 transition-transform duration-300 hover:-translate-y-2 hover:bg-[var(--color-surface)]/80 hover:shadow-lg hover:shadow-[var(--color-accent)]/10"
+              >
               <div className="flex items-start justify-between">
                 <div
                   className="grid h-11 w-11 place-items-center rounded-xl"
@@ -75,6 +77,11 @@ export function ComingSoonSection() {
               <p className="mt-1.5 text-sm leading-relaxed text-[var(--color-muted)]">{f.desc}</p>
             </div>
           ))}
+          </div>
+          
+          {/* Fade edges to indicate scrolling */}
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-[var(--color-background)] to-transparent sm:hidden" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-[var(--color-background)] to-transparent" />
         </div>
       </Reveal>
     </section>
