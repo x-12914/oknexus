@@ -61,7 +61,12 @@ export function ComingSoonSection() {
               animation: marquee 40s linear infinite;
               width: max-content;
             }
-            .animate-marquee:hover {
+            @media (hover: hover) {
+              .animate-marquee:hover {
+                animation-play-state: paused;
+              }
+            }
+            .animate-marquee:active {
               animation-play-state: paused;
             }
           `}</style>
