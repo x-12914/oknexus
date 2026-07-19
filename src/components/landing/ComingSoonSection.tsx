@@ -51,13 +51,27 @@ export function ComingSoonSection() {
       </div>
 
       <Reveal>
-        <div className="relative mt-12">
-          {/* Horizontal scroll container */}
-          <div className="-mx-4 flex gap-5 overflow-x-auto px-4 pb-8 pt-4 snap-x snap-mandatory sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            {ROADMAP.map((f) => (
+        <div className="relative mt-12 overflow-hidden">
+          <style>{`
+            @keyframes marquee {
+              0% { transform: translateX(0); }
+              100% { transform: translateX(-50%); }
+            }
+            .animate-marquee {
+              animation: marquee 40s linear infinite;
+              width: max-content;
+            }
+            .animate-marquee:hover {
+              animation-play-state: paused;
+            }
+          `}</style>
+          
+          <div className="animate-marquee flex gap-5 py-4">
+            {/* Render the roadmap items twice for a seamless infinite loop */}
+            {[...ROADMAP, ...ROADMAP].map((f, i) => (
               <div
-                key={f.title}
-                className="w-[85vw] sm:w-[340px] shrink-0 snap-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 p-6 transition-transform duration-300 hover:-translate-y-2 hover:bg-[var(--color-surface)]/80 hover:shadow-lg hover:shadow-[var(--color-accent)]/10"
+                key={`${f.title}-${i}`}
+                className="w-[85vw] sm:w-[340px] shrink-0 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 p-6 transition-transform duration-300 hover:-translate-y-2 hover:bg-[var(--color-surface)]/80 hover:shadow-lg hover:shadow-[var(--color-accent)]/10"
               >
               <div className="flex items-start justify-between">
                 <div
