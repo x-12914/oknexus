@@ -1,0 +1,236 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Exodus-inspired themes. Components reference these as var(--color-*), so the
+   palette switches at runtime via the data-theme attribute on <html>. */
+:root {
+  color-scheme: light;
+  --color-background: #f4f3fa;
+  --color-surface: #ffffff;
+  --color-surface-2: #f0eef8;
+  --color-border: #e4e1f0;
+  --color-foreground: #1a1830;
+  --color-muted: #6f6c88;
+  --color-accent: #7c5cf6;
+  --color-accent-hover: #6b47f0;
+  --color-up: #0e9f6e;
+  --color-up-bg: rgba(14, 159, 110, 0.1);
+  --color-down: #e5484d;
+  --color-down-bg: rgba(229, 72, 77, 0.1);
+  --brand-gradient: linear-gradient(135deg, #8b5cf6 0%, #6366f1 45%, #22d3ee 100%);
+  --aurora:
+    radial-gradient(900px 520px at 8% -10%, rgba(124, 92, 246, 0.12), transparent 60%),
+    radial-gradient(820px 500px at 96% -8%, rgba(34, 211, 238, 0.1), transparent 55%),
+    radial-gradient(760px 520px at 55% 4%, rgba(236, 72, 153, 0.07), transparent 62%);
+  --glass-bg: rgba(255, 255, 255, 0.66);
+  --glass-border: rgba(26, 24, 48, 0.07);
+  --glass-shadow: 0 10px 40px rgba(90, 80, 150, 0.12);
+  --topbar-bg: rgba(255, 255, 255, 0.7);
+  --selection-bg: rgba(124, 92, 246, 0.2);
+  --chart-bg: #ffffff;
+  --chart-text: #6f6c88;
+  --chart-grid: rgba(26, 24, 48, 0.06);
+  --chart-border: #e4e1f0;
+  --chart-up: #0e9f6e;
+  --chart-down: #e5484d;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-background: #0a0912;
+  --color-surface: #14121f;
+  --color-surface-2: #1d1a30;
+  --color-border: #2a2642;
+  --color-foreground: #ecebf5;
+  --color-muted: #8f8bb0;
+  --color-accent: #8b5cf6;
+  --color-accent-hover: #9d74ff;
+  --color-up: #26d9a3;
+  --color-up-bg: rgba(38, 217, 163, 0.12);
+  --color-down: #ff5b79;
+  --color-down-bg: rgba(255, 91, 121, 0.12);
+  --aurora:
+    radial-gradient(900px 520px at 8% -10%, rgba(139, 92, 246, 0.22), transparent 60%),
+    radial-gradient(820px 500px at 96% -8%, rgba(34, 211, 238, 0.13), transparent 55%),
+    radial-gradient(760px 520px at 55% 4%, rgba(99, 102, 241, 0.12), transparent 62%);
+  --glass-bg: rgba(29, 26, 48, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 10px 44px rgba(8, 6, 22, 0.5);
+  --topbar-bg: rgba(20, 18, 31, 0.6);
+  --selection-bg: rgba(139, 92, 246, 0.32);
+  --chart-bg: #14121f;
+  --chart-text: #8f8bb0;
+  --chart-grid: rgba(42, 38, 66, 0.5);
+  --chart-border: #2a2642;
+  --chart-up: #26d9a3;
+  --chart-down: #ff5b79;
+}
+
+html,
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  line-height: 1.6;
+}
+
+/* Exodus-style typography: slight negative tracking on headings for a premium,
+   tighter look. In @layer base so explicit tracking-* utilities still win. */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Signature aurora glow, fixed behind the whole app; swaps with the theme. */
+body {
+  background-image: var(--aurora);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+::selection {
+  background: var(--selection-bg);
+}
+
+/* ---- Brand utilities ---- */
+.text-gradient {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.bg-brand-gradient {
+  background-image: var(--brand-gradient);
+}
+
+.btn-brand {
+  background-image: var(--brand-gradient);
+  color: #fff;
+  transition: filter 0.15s ease;
+}
+.btn-brand:hover:not(:disabled) {
+  filter: brightness(1.05) saturate(1.05);
+}
+
+/* Frosted-glass surface for hero cards over the aurora. */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* Slim scrollbars for depth panels. */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---- Landing (Exodus-style dark) ---- */
+.spectrum-text {
+  background-image: linear-gradient(100deg, #5b8bff, #9b6bff, #e05be0, #ff6aa5);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.spectrum-bg {
+  background-image: linear-gradient(100deg, #4d7cff, #8b5cf6, #d648e6, #ff5c9d);
+  color: #fff;
+}
+
+/* ---- Landing motion ---- */
+@keyframes lp-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes lp-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(16px, -24px) scale(1.05);
+  }
+}
+@keyframes lp-float2 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-20px, 22px) scale(1.08);
+  }
+}
+@keyframes lp-shimmer {
+  to {
+    background-position: 200% center;
+  }
+}
+.lp-fade-up {
+  opacity: 0;
+  animation: lp-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.lp-float {
+  animation: lp-float 12s ease-in-out infinite;
+}
+.lp-float2 {
+  animation: lp-float2 16s ease-in-out infinite;
+}
+.spectrum-text-anim {
+  background-image: linear-gradient(100deg, #5b8bff, #9b6bff, #e05be0, #ff6aa5, #9b6bff, #5b8bff);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: lp-shimmer 7s linear infinite;
+}
+.lp-reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lp-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-fade-up,
+  .lp-float,
+  .lp-float2,
+  .spectrum-text-anim {
+    animation: none;
+    opacity: 1;
+  }
+  .lp-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

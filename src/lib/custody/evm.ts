@@ -1,0 +1,309 @@
+import {
+  createPublicClient,
+  createWalletClient,
+  http,
+  parseEther,
+  formatEther,
+  parseUnits,
+  formatUnits,
+  getAddress,
+  isAddress,
+  parseAbiItem,
+  encodeFunctionData,
+  serializeTransaction,
+  erc20Abi,
+} from "viem";
+import { sepolia, mainnet } from "viem/chains";
+import { mnemonicToAccount } from "viem/accounts";
+import type { ChainAdapter, ChainConfig, OnChainDeposit, TokenConfig } from "./types";
+import { turnkeyConfigured, signEvmTransaction } from "@/lib/turnkey";
+
+const TRANSFER_EVENT = parseAbiItem(
+  "event Transfer(address indexed from, address indexed to, uint256 value)",
+);
+
+// Network selection: Sepolia by default. Set EVM_NETWORK=mainnet to run on Ethereum
+// mainnet — REAL FUNDS: also point INFURA_API_KEY at a mainnet key and fund the hot
+// wallet with real ETH. Production stays on Sepolia until this env var is set.
+const IS_MAINNET = process.env.EVM_NETWORK === "mainnet";
+const CHAIN = IS_MAINNET ? mainnet : sepolia;
+const INFURA_HOST = IS_MAINNET ? "mainnet.infura.io" : "sepolia.infura.io";
+const EXPLORER = IS_MAINNET ? "https://etherscan.io" : "https://sepolia.etherscan.io";
+
+/** RPC endpoint — prefers Infura (the client's chosen provider) when INFURA_API_KEY is set. */
+function evmRpcUrl(): string | undefined {
+  if (process.env.INFURA_API_KEY) return `https://${INFURA_HOST}/v3/${process.env.INFURA_API_KEY}`;
+  return process.env.EVM_RPC_URL;
+}
+
+function parseTokens(): TokenConfig[] {
+  const raw = process.env.EVM_TOKENS;
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw) as TokenConfig[];
+    return arr.map((t) => ({
+      symbol: t.symbol,
+      address: getAddress(t.address),
+      decimals: t.decimals,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// EVM custody adapter. Points at Sepolia today; the same code runs on mainnet by
+// changing the RPC + the viem chain. Two withdrawal backends:
+//  - Turnkey (when configured): build unsigned tx → Turnkey signs → broadcast via Infura.
+//  - HD hot wallet (fallback): viem signs locally with the custody-seed account 0.
+export class EvmAdapter implements ChainAdapter {
+  readonly config: ChainConfig;
+  private _pub?: ReturnType<typeof createPublicClient>;
+  private _wallet?: ReturnType<typeof createWalletClient>;
+  private _hot?: ReturnType<typeof mnemonicToAccount>;
+
+  constructor() {
+    this.config = {
+      chain: process.env.EVM_CHAIN_NAME ?? "ethereum-sepolia",
+      kind: "EVM",
+      nativeSymbol: process.env.EVM_NATIVE_SYMBOL ?? "ETH",
+      minConfirmations: Number(process.env.EVM_MIN_CONFIRMATIONS ?? 3),
+      explorerTxUrl: (h) => `${EXPLORER}/tx/${h}`,
+      explorerAddressUrl: (a) => `${EXPLORER}/address/${a}`,
+      tokens: parseTokens(),
+    };
+  }
+
+  private mnemonic(): string {
+    const m = process.env.CUSTODY_MNEMONIC;
+    if (!m) throw new Error("CUSTODY_MNEMONIC is not set");
+    return m;
+  }
+
+  private pub() {
+    if (!this._pub) {
+      this._pub = createPublicClient({ chain: CHAIN, transport: http(evmRpcUrl()) });
+    }
+    return this._pub;
+  }
+
+  private hot() {
+    if (!this._hot) this._hot = mnemonicToAccount(this.mnemonic(), { addressIndex: 0 });
+    return this._hot;
+  }
+
+  private wallet() {
+    if (!this._wallet) {
+      this._wallet = createWalletClient({
+        account: this.hot(),
+        chain: CHAIN,
+        transport: http(evmRpcUrl()),
+      });
+    }
+    return this._wallet;
+  }
+
+  deriveAddress(index: number): string {
+    return mnemonicToAccount(this.mnemonic(), { addressIndex: index }).address;
+  }
+
+  getBlockNumber(): Promise<bigint> {
+    return this.pub().getBlockNumber();
+  }
+
+  async scanDeposits(
+    watched: string[],
+    fromBlock: bigint,
+    toBlock: bigint,
+  ): Promise<OnChainDeposit[]> {
+    if (watched.length === 0 || toBlock < fromBlock) return [];
+    const set = new Set(watched.map((a) => a.toLowerCase()));
+    const out: OnChainDeposit[] = [];
+
+    // Native ETH — inspect each block's transactions for transfers to us.
+    for (let b = fromBlock; b <= toBlock; b++) {
+      const block = await this.pub().getBlock({ blockNumber: b, includeTransactions: true });
+      for (const tx of block.transactions) {
+        if (tx.to && tx.value > BigInt(0) && set.has(tx.to.toLowerCase())) {
+          out.push({
+            symbol: this.config.nativeSymbol,
+            amount: Number(formatEther(tx.value)),
+            address: getAddress(tx.to),
+            txHash: tx.hash,
+            blockNumber: b,
+          });
+        }
+      }
+    }
+
+    // ERC-20 tokens — filter Transfer logs whose `to` is one of our addresses.
+    for (const token of this.config.tokens) {
+      const logs = await this.pub().getLogs({
+        address: token.address as `0x${string}`,
+        event: TRANSFER_EVENT,
+        args: { to: watched as `0x${string}`[] },
+        fromBlock,
+        toBlock,
+      });
+      for (const log of logs) {
+        const to = log.args.to;
+        const value = log.args.value;
+        if (!to || value == null || !set.has(to.toLowerCase())) continue;
+        out.push({
+          symbol: token.symbol,
+          amount: Number(formatUnits(value, token.decimals)),
+          address: getAddress(to),
+          txHash: log.transactionHash,
+          blockNumber: log.blockNumber,
+        });
+      }
+    }
+    return out;
+  }
+
+  async sendWithdrawal(symbol: string, to: string, amount: number): Promise<string> {
+    const dest = getAddress(to);
+    if (turnkeyConfigured()) {
+      return this.sendTurnkeyWithdrawal(symbol, dest, amount);
+    }
+    // Fallback: sign locally with the HD hot wallet (account 0).
+    if (symbol === this.config.nativeSymbol) {
+      return this.wallet().sendTransaction({
+        account: this.hot(),
+        chain: CHAIN,
+        to: dest,
+        value: parseEther(String(amount)),
+      });
+    }
+    const token = this.config.tokens.find((t) => t.symbol === symbol);
+    if (!token) throw new Error(`Unsupported token for withdrawal: ${symbol}`);
+    return this.wallet().writeContract({
+      account: this.hot(),
+      chain: CHAIN,
+      address: token.address as `0x${string}`,
+      abi: erc20Abi,
+      functionName: "transfer",
+      args: [dest, parseUnits(String(amount), token.decimals)],
+    });
+  }
+
+  /** The Turnkey-controlled hot wallet that funds withdrawals. */
+  private turnkeyHotAddress(): `0x${string}` {
+    const a = process.env.TURNKEY_EVM_HOT_ADDRESS;
+    if (!a) {
+      throw new Error(
+        "TURNKEY_EVM_HOT_ADDRESS is not set — provision the hot wallet (scripts/turnkey-hot-wallet.mjs), " +
+          "set it in .env, and fund it from a Sepolia faucet.",
+      );
+    }
+    return getAddress(a);
+  }
+
+  /** Withdraw via Turnkey: build an unsigned tx, have Turnkey sign it, broadcast via Infura. */
+  private async sendTurnkeyWithdrawal(
+    symbol: string,
+    dest: `0x${string}`,
+    amount: number,
+  ): Promise<string> {
+    const from = this.turnkeyHotAddress();
+    const pub = this.pub();
+
+    let to: `0x${string}`;
+    let value: bigint;
+    let data: `0x${string}` | undefined;
+    if (symbol === this.config.nativeSymbol) {
+      to = dest;
+      value = parseEther(String(amount));
+    } else {
+      const token = this.config.tokens.find((t) => t.symbol === symbol);
+      if (!token) throw new Error(`Unsupported token for withdrawal: ${symbol}`);
+      to = token.address as `0x${string}`;
+      value = BigInt(0);
+      data = encodeFunctionData({
+        abi: erc20Abi,
+        functionName: "transfer",
+        args: [dest, parseUnits(String(amount), token.decimals)],
+      });
+    }
+
+    const [nonce, fees] = await Promise.all([
+      pub.getTransactionCount({ address: from, blockTag: "pending" }),
+      pub.estimateFeesPerGas(),
+    ]);
+    let gas: bigint;
+    try {
+      gas = await pub.estimateGas({ account: from, to, value, data });
+    } catch {
+      gas = data ? BigInt(100000) : BigInt(21000);
+    }
+
+    const unsigned = serializeTransaction({
+      chainId: CHAIN.id,
+      type: "eip1559",
+      nonce,
+      to,
+      value,
+      data,
+      gas,
+      maxFeePerGas: fees.maxFeePerGas,
+      maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+    });
+    const signed = await signEvmTransaction(from, unsigned.slice(2));
+    const serializedTransaction = (signed.startsWith("0x") ? signed : `0x${signed}`) as `0x${string}`;
+    return pub.sendRawTransaction({ serializedTransaction });
+  }
+
+  /**
+   * Sweep the native balance of a per-user Turnkey deposit address into the hot
+   * wallet (so the hot wallet can fund withdrawals). Turnkey signs for the address;
+   * gas is paid from the swept balance, leaving only dust. Native ETH only.
+   */
+  async sweepNativeToHot(
+    from: `0x${string}`,
+  ): Promise<{ txHash: string; amount: number } | null> {
+    const hot = this.turnkeyHotAddress();
+    if (from.toLowerCase() === hot.toLowerCase()) return null;
+
+    const pub = this.pub();
+    const [balance, fees] = await Promise.all([
+      pub.getBalance({ address: from }),
+      pub.estimateFeesPerGas(),
+    ]);
+    const gas = BigInt(21000);
+    const gasCost = gas * fees.maxFeePerGas;
+    const minSweep = parseEther(process.env.EVM_MIN_SWEEP ?? "0.002");
+    // Only sweep when it covers gas and leaves a worthwhile amount behind.
+    if (balance <= gasCost + minSweep) return null;
+
+    const value = balance - gasCost;
+    const nonce = await pub.getTransactionCount({ address: from, blockTag: "pending" });
+    const unsigned = serializeTransaction({
+      chainId: CHAIN.id,
+      type: "eip1559",
+      nonce,
+      to: hot,
+      value,
+      gas,
+      maxFeePerGas: fees.maxFeePerGas,
+      maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+    });
+    const signed = await signEvmTransaction(from, unsigned.slice(2));
+    const serializedTransaction = (signed.startsWith("0x") ? signed : `0x${signed}`) as `0x${string}`;
+    const txHash = await pub.sendRawTransaction({ serializedTransaction });
+    return { txHash, amount: Number(formatEther(value)) };
+  }
+
+  validateAddress(address: string): boolean {
+    return isAddress(address);
+  }
+
+  async getTransaction(
+    txHash: string,
+  ): Promise<{ mined: boolean; blockNumber: bigint; success: boolean }> {
+    try {
+      const r = await this.pub().getTransactionReceipt({ hash: txHash as `0x${string}` });
+      return { mined: true, blockNumber: r.blockNumber, success: r.status === "success" };
+    } catch {
+      return { mined: false, blockNumber: BigInt(0), success: false };
+    }
+  }
+}
