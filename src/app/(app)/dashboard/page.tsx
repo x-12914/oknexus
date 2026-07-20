@@ -5,7 +5,6 @@ import { PortfolioSummary } from "@/components/dashboard/PortfolioSummary";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { AssetList, type AssetRow } from "@/components/dashboard/AssetList";
 import { RecentActivity, type ActivityRow } from "@/components/dashboard/RecentActivity";
-import { Decimal } from "@prisma/client/runtime/library";
 
 // Rough USD exchange rates for portfolio estimation. In the future these will be
 // replaced by a live price oracle.
