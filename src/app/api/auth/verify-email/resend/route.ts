@@ -20,7 +20,8 @@ export async function POST() {
   }
   try {
     await sendVerificationEmail({ id: user.id, email: user.email, name: user.name });
-  } catch {
+  } catch (err) {
+    console.error("Resend API Error:", err);
     return Response.json({ error: "Could not send the email right now." }, { status: 502 });
   }
   return Response.json({ ok: true });
