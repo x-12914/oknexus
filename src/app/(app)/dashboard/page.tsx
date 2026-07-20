@@ -26,7 +26,7 @@ const MOCK_USD_PRICES: Record<string, number> = {
   LTC: 82,
 };
 
-function toNumber(d: Decimal): number {
+function toNumber(d: any): number {
   return parseFloat(d.toString());
 }
 
