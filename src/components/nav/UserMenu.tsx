@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { ChevronDown, LogOut, ShieldCheck, Cog, Lock } from "lucide-react";
+import { ChevronDown, LogOut, Settings, Cog } from "lucide-react";
 
 export function UserMenu({ email, isAdmin }: { email?: string; isAdmin?: boolean }) {
   const [open, setOpen] = useState(false);
@@ -28,11 +28,8 @@ export function UserMenu({ email, isAdmin }: { email?: string; isAdmin?: boolean
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden />
           <div className="absolute right-0 z-20 mt-1 w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-xl">
-            <Link href="/kyc" onClick={() => setOpen(false)} className={itemCls}>
-              <ShieldCheck className="h-4 w-4" /> Verify identity
-            </Link>
-            <Link href="/security" onClick={() => setOpen(false)} className={itemCls}>
-              <Lock className="h-4 w-4" /> Security
+            <Link href="/settings" onClick={() => setOpen(false)} className={itemCls}>
+              <Settings className="h-4 w-4" /> Settings
             </Link>
             {isAdmin ? (
               <Link href="/admin" onClick={() => setOpen(false)} className={itemCls}>
