@@ -21,7 +21,7 @@ export default async function ProfilePage() {
 
         <div className="mt-8 space-y-6">
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/40 p-5">
-            <h3 className="font-medium text-white">Account Info</h3>
+            <h3 className="font-medium text-[var(--color-foreground)]">Account Info</h3>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>
                 <div className="text-xs text-[var(--color-muted)]">Email</div>
@@ -47,14 +47,14 @@ export default async function ProfilePage() {
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/40 p-5">
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="font-medium text-white">Verification Status (KYC)</h3>
+                <h3 className="font-medium text-[var(--color-foreground)]">Verification Status (KYC)</h3>
                 <p className="mt-1 text-xs text-[var(--color-muted)]">
                   Current Tier: <span className="font-semibold uppercase">{user?.kycStatus}</span>
                 </p>
               </div>
               <a
                 href="/kyc"
-                className="rounded-lg bg-[var(--color-surface-2)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--color-border)]"
+                className="rounded-lg bg-[var(--color-surface-2)] px-3 py-1.5 text-xs font-medium text-[var(--color-foreground)] hover:bg-[var(--color-border)]"
               >
                 Upgrade Tier
               </a>

@@ -33,7 +33,7 @@ export default async function SecurityPage() {
           <TwoFactorCard initialEnabled={!!user?.twoFAEnabled} />
           
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/40 p-5">
-            <h3 className="font-medium text-white">Withdrawal Whitelist</h3>
+            <h3 className="font-medium text-[var(--color-foreground)]">Withdrawal Whitelist</h3>
             <p className="mt-1 text-xs text-[var(--color-muted)]">Restrict withdrawals to verified addresses only.</p>
             <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-1.5 text-xs text-[var(--color-muted)]">
               Coming soon
