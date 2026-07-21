@@ -7,14 +7,7 @@ import { NotificationBell } from "./NotificationBell";
 export function TopBar({ userEmail, isAdmin }: { userEmail?: string; isAdmin?: boolean }) {
   return (
     <header className="h-14 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--topbar-bg)] backdrop-blur-xl px-4">
-      <div className="flex items-center gap-2 text-sm text-[var(--color-muted)]">
-        <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-up)] opacity-60" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--color-up)]" />
-        </span>
-        <span className="hidden sm:inline">Live market data —</span>{" "}
-        <span className="text-[var(--color-foreground)]">Binance</span>
-      </div>
+      <div />
       <div className="flex items-center gap-2">
         <ThemeToggle />
         {userEmail ? (

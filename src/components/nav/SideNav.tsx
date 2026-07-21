@@ -13,6 +13,7 @@ import {
   BarChart3,
   BellRing,
   PiggyBank,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/Logo";
@@ -63,8 +64,20 @@ export function SideNav() {
           );
         })}
       </nav>
-      <div className="p-3 border-t border-[var(--color-border)] text-xs text-[var(--color-muted)]">
-        <div>v0.1 · Live market data</div>
+      <div className="p-3 border-t border-[var(--color-border)] space-y-2">
+        <Link
+          href="/settings"
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+            pathname.startsWith("/settings")
+              ? "bg-[rgba(139,92,246,0.14)] text-[var(--color-foreground)] ring-1 ring-inset ring-[rgba(139,92,246,0.35)]"
+              : "text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)]",
+          )}
+        >
+          <Settings className={cn("h-4 w-4", pathname.startsWith("/settings") && "text-[var(--color-accent)]")} />
+          Settings
+        </Link>
+        <div className="px-3 text-xs text-[var(--color-muted)]">v0.1</div>
       </div>
     </aside>
   );

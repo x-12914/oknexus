@@ -56,6 +56,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) return null;
 
+        // Block sign-in until email is verified.
+        if (!user.emailVerified) throw new Error("EMAIL_NOT_VERIFIED");
+
         // Two-factor: when enabled, a valid, not-yet-used current TOTP code is required.
         if (user.twoFAEnabled) {
           const secret = user.twoFASecret ? decryptSecret(user.twoFASecret) : null;

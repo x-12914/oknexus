@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
   const user = await prisma.user.findUnique({
     where: { email: e },
-    select: { passwordHash: true, twoFAEnabled: true, suspended: true },
+    select: { passwordHash: true, twoFAEnabled: true, suspended: true, emailVerified: true },
   });
   // Always run a bcrypt compare (real hash or dummy) so timing doesn't reveal whether
   // the account exists; only reveal suspension once the password is proven correct.
@@ -37,6 +37,9 @@ export async function POST(req: NextRequest) {
   if (!user?.passwordHash || !ok) return Response.json({ valid: false }, { status: 401 });
   if (user.suspended) {
     return Response.json({ error: "This account has been suspended." }, { status: 403 });
+  }
+  if (!user.emailVerified) {
+    return Response.json({ valid: false, emailNotVerified: true }, { status: 403 });
   }
 
   return Response.json({ valid: true, needs2FA: user.twoFAEnabled });

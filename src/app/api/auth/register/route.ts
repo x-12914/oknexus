@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { ensureWallets } from "@/lib/wallet";
 import { emailConfigured } from "@/lib/email";
-import { sendVerificationEmail } from "@/lib/email-verify";
+import { sendOtpEmail } from "@/lib/email-verify";
 import { notify } from "@/lib/notifications";
 
 const RegisterSchema = z.object({
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
       email,
       passwordHash,
       name: parsed.data.name || null,
+      // emailVerified left null — account is inactive until OTP is confirmed.
     },
   });
 
@@ -58,14 +59,18 @@ export async function POST(req: NextRequest) {
     href: "/wallet",
   });
 
-  // Send the verification email (non-blocking: registration succeeds regardless).
+  // Send OTP verification code (required before account is active).
   if (emailConfigured()) {
     try {
-      await sendVerificationEmail({ id: user.id, email: user.email, name: user.name });
-    } catch {
-      // Swallow — a failed email must not fail signup.
+      await sendOtpEmail(user.email, user.name);
+    } catch (err) {
+      console.error("OTP send failed:", err);
+      // Non-fatal — client will show resend option.
     }
+    return Response.json({ ok: true, needsVerification: true });
   }
 
-  return Response.json({ ok: true });
+  // Email not configured (dev): skip verification, activate immediately.
+  await prisma.user.update({ where: { id: user.id }, data: { emailVerified: new Date() } });
+  return Response.json({ ok: true, needsVerification: false });
 }
