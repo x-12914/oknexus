@@ -14,12 +14,14 @@ import {
   BellRing,
   PiggyBank,
   Settings,
+  Compass,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/Logo";
 
 export const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/explore", label: "Explore", icon: Compass },
   { href: "/wallet", label: "Wallet", icon: Wallet },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/trade/BTC-USDT", label: "Spot Trading", icon: CandlestickChart, match: "/trade" },
