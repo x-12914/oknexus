@@ -1,4 +1,4 @@
-import { Compass, Sparkles, Rocket, Zap, Smartphone, Globe } from "lucide-react";
+import { Compass, Rocket, Zap, Smartphone, Globe } from "lucide-react";
 
 export default function ExplorePage() {
   const features = [
@@ -49,16 +49,6 @@ export default function ExplorePage() {
             <p className="text-[var(--color-muted)] text-sm leading-relaxed">{f.desc}</p>
           </div>
         ))}
-      </div>
-      
-      <div className="mt-12 p-8 rounded-3xl bg-gradient-to-br from-[var(--color-accent)]/10 to-transparent border border-[var(--color-accent)]/20 text-center relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-          <Sparkles className="h-32 w-32" />
-        </div>
-        <Sparkles className="h-10 w-10 text-[var(--color-accent)] mx-auto mb-4" />
-        <h2 className="text-xl font-bold mb-3 text-[var(--color-foreground)]">Have a feature request?</h2>
-        <p className="text-[var(--color-muted)] text-sm max-w-md mx-auto mb-8">We're always building. Let us know what you want to see next and help shape the future of OKNexus.</p>
-        <button className="btn-brand px-6 py-2.5 rounded-xl font-medium text-sm shadow-lg shadow-[var(--color-accent)]/20 hover:scale-105 transition-transform">Submit Request</button>
       </div>
     </div>
   );
