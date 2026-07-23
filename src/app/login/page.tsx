@@ -4,7 +4,7 @@ import { AuthForm } from "@/components/auth/AuthForm";
 
 export default async function LoginPage() {
   const session = await auth();
-  if (session?.user) redirect("/trade/BTC-USDT");
+  if (session?.user) redirect("/dashboard");
   return (
     <div className="min-h-screen grid place-items-center p-4">
       <AuthForm mode="login" />

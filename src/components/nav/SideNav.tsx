@@ -21,7 +21,6 @@ import { Logo } from "@/components/brand/Logo";
 
 export const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/explore", label: "Explore", icon: Compass },
   { href: "/wallet", label: "Wallet", icon: Wallet },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/trade/BTC-USDT", label: "Spot Trading", icon: CandlestickChart, match: "/trade" },
@@ -31,6 +30,7 @@ export const NAV = [
   { href: "/earn", label: "Earn", icon: PiggyBank },
   { href: "/p2p", label: "P2P Trading", icon: Users },
   { href: "/alerts", label: "Price Alerts", icon: BellRing },
+  { href: "/explore", label: "Explore", icon: Compass },
 ] as const;
 
 export function SideNav() {

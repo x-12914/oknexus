@@ -8,7 +8,7 @@ import { Loader2, Eye, EyeOff, Mail } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { cn } from "@/lib/utils";
 
-const AFTER_AUTH = "/trade/BTC-USDT";
+const AFTER_AUTH = "/dashboard";
 
 type Step = "form" | "verify-otp";
 
