@@ -18,7 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/Logo";
 
-const NAV = [
+export const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/wallet", label: "Wallet", icon: Wallet },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },

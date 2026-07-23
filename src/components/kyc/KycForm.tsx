@@ -59,10 +59,10 @@ export function KycForm() {
   return (
     <div className="p-6 max-w-md mx-auto">
       <Link
-        href="/wallet"
+        href="/settings"
         className="inline-flex items-center gap-1.5 text-sm text-[var(--color-muted)] hover:text-[var(--color-foreground)] mb-4"
       >
-        <ArrowLeft className="h-4 w-4" /> Back to wallet
+        <ArrowLeft className="h-4 w-4" /> Back to settings
       </Link>
       <h1 className="text-xl font-semibold mb-1">Identity verification</h1>
       <p className="text-sm text-[var(--color-muted)] mb-4">

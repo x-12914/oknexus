@@ -4,10 +4,12 @@ import { UserMenu } from "./UserMenu";
 import { WalletBadge } from "./WalletBadge";
 import { NotificationBell } from "./NotificationBell";
 
+import { MobileNav } from "./MobileNav";
+
 export function TopBar({ userEmail, isAdmin }: { userEmail?: string; isAdmin?: boolean }) {
   return (
-    <header className="h-14 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--topbar-bg)] backdrop-blur-xl px-4">
-      <div />
+    <header className="h-14 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--topbar-bg)] backdrop-blur-xl px-4 relative z-50">
+      <MobileNav />
       <div className="flex items-center gap-2">
         <ThemeToggle />
         {userEmail ? (
