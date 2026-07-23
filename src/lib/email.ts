@@ -7,7 +7,7 @@ import { Resend } from "resend";
  * Until the domain is verified in Resend, use their test sender "onboarding@resend.dev"
  * (which only delivers to the account owner's address).
  */
-const FROM = process.env.EMAIL_FROM ?? "OKNexus <onboarding@resend.dev>";
+const FROM = process.env.EMAIL_FROM ?? "OKNexus <autoresponse@oknexusexchange.com>";
 
 export function emailConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY);
