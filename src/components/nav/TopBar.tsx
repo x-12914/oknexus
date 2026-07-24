@@ -48,7 +48,9 @@ export function TopBar({ userEmail, isAdmin }: { userEmail?: string; isAdmin?: b
         hidden ? "-mt-14" : "mt-0"
       )}
     >
-      <MobileNav />
+      <div className="flex-1">
+        <MobileNav />
+      </div>
       <div className="flex items-center gap-2">
         <ThemeToggle />
         {userEmail ? (

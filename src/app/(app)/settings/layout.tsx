@@ -11,6 +11,8 @@ import {
   Settings,
   Bell,
   LifeBuoy,
+  Gift,
+  Users,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -21,6 +23,9 @@ const NAV_ITEMS = [
   { href: "/settings/preferences", label: "Preferences", icon: Settings },
   { href: "/settings/notifications", label: "Notifications", icon: Bell },
   { href: "/settings/support", label: "Support", icon: LifeBuoy },
+  { href: "/settings/affiliates", label: "Affiliates & Referrals", icon: Users },
+  { href: "/settings/rewards", label: "Rewards Hub", icon: Gift },
+  { href: "/settings/community", label: "Community", icon: Users },
 ];
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
