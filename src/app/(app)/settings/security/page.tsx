@@ -5,6 +5,7 @@ import { describeDevice } from "@/lib/login-history";
 import { TwoFactorCard } from "@/components/security/TwoFactorCard";
 import { LoginHistory } from "@/components/security/LoginHistory";
 import { SignOutAllCard } from "@/components/security/SignOutAllCard";
+import { PasswordManagementCard } from "@/components/security/PasswordManagementCard";
 
 export default async function SecurityPage() {
   const u = await sessionUser();
@@ -30,6 +31,7 @@ export default async function SecurityPage() {
           Manage how your OKNexus account is protected.
         </p>
         <div className="mt-8 space-y-6">
+          <PasswordManagementCard />
           <TwoFactorCard initialEnabled={!!user?.twoFAEnabled} />
           
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/40 p-5">

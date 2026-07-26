@@ -64,7 +64,7 @@ export async function sendVerificationEmail(user: {
 const OTP_TTL_MS = 1000 * 60 * 15; // 15 minutes
 
 /** Generate a cryptographically random 6-digit code, persist it, and return it. */
-async function createOtp(email: string): Promise<string> {
+export async function createOtp(email: string): Promise<string> {
   const code = String(crypto.randomInt(100_000, 999_999));
   const expires = new Date(Date.now() + OTP_TTL_MS);
   const identifier = `otp:${email.toLowerCase()}`;
@@ -82,6 +82,16 @@ export async function sendOtpEmail(email: string, name: string | null): Promise<
     to: email,
     subject: "Your OKNexus verification code",
     html: otpHtml(name?.trim() || "there", code),
+  });
+}
+
+/** Send a 6-digit OTP code email for password change. */
+export async function sendPasswordOtpEmail(email: string, name: string | null): Promise<void> {
+  const code = await createOtp(email);
+  await sendEmail({
+    to: email,
+    subject: "OKNexus Password Change Request",
+    html: passwordOtpHtml(name?.trim() || "there", code),
   });
 }
 
@@ -120,6 +130,29 @@ function otpHtml(name: string, code: string): string {
         </div>
         <p style="color:#6f6c80;font-size:12px;line-height:1.6;margin:0;">
           This code expires in 15 minutes. If you didn't create an OKNexus account, you can safely ignore this email.
+        </p>
+      </div>
+    </div>
+  </div>`;
+}
+
+function passwordOtpHtml(name: string, code: string): string {
+  return `
+  <div style="background:#08060f;padding:32px 0;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
+    <div style="max-width:480px;margin:0 auto;background:#100d1c;border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden;">
+      <div style="padding:28px 32px;">
+        <div style="font-size:20px;font-weight:700;letter-spacing:0.5px;">
+          <span style="color:#f7a91b;">OK</span><span style="color:#ffffff;">NEXUS</span>
+        </div>
+        <h1 style="color:#ffffff;font-size:22px;margin:24px 0 8px;">Change your password</h1>
+        <p style="color:#a7a4b8;font-size:14px;line-height:1.6;margin:0 0 24px;">
+          Hi ${name}, enter the code below to verify your request to change your password.
+        </p>
+        <div style="background:#1e1a2e;border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:20px 0;text-align:center;margin-bottom:24px;">
+          <span style="font-size:36px;font-weight:800;letter-spacing:12px;color:#ffffff;font-family:monospace;">${code}</span>
+        </div>
+        <p style="color:#6f6c80;font-size:12px;line-height:1.6;margin:0;">
+          This code expires in 15 minutes. If you didn't request a password change, you can safely ignore this email and your password will remain the same.
         </p>
       </div>
     </div>
