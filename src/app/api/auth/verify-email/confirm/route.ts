@@ -15,7 +15,7 @@ const ResendSchema = z.object({
   email: z.string().email(),
 });
 
-// POST /api/auth/verify-email/confirm - verify the OTP and activate the account.
+// POST /api/auth/verify-email/confirm verify the OTP and activate the account.
 export async function POST(req: NextRequest) {
   let body: unknown;
   try {
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
   return Response.json({ ok: true });
 }
 
-// PUT /api/auth/verify-email/confirm - resend the OTP (unauthenticated, pre-login).
+// PUT /api/auth/verify-email/confirm resend the OTP (unauthenticated, pre-login).
 export async function PUT(req: NextRequest) {
   let body: unknown;
   try {

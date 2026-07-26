@@ -43,7 +43,7 @@ export function NotificationBell() {
         await api.markNotificationsRead();
         refresh();
       } catch {
-        // ignore - badge just stays until the next poll
+        // ignore badge just stays until the next poll
       }
     }
   };

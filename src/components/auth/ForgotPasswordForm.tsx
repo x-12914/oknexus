@@ -20,7 +20,7 @@ export function ForgotPasswordForm() {
         body: JSON.stringify({ email }),
       });
     } catch {
-      // Ignore - we show the same neutral confirmation regardless.
+      // Ignore we show the same neutral confirmation regardless.
     }
     setSent(true);
     setLoading(false);

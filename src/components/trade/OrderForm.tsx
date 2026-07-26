@@ -171,10 +171,10 @@ export function OrderForm({
           />
         ) : (
           <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-xs text-[var(--color-muted)]">
-            {type === "STOP" ? "Triggers a market order" : "Market"} - filled against best{" "}
+            {type === "STOP" ? "Triggers a market order" : "Market"} filled against best{" "}
             {side === "BUY" ? "ask" : "bid"} @{" "}
             <span className="text-[var(--color-foreground)] tabular-nums">
-              {ticker ? formatPrice(side === "BUY" ? ticker.ask : ticker.bid, priceDecimals) : "-"}
+              {ticker ? formatPrice(side === "BUY" ? ticker.ask : ticker.bid, priceDecimals) : ""}
             </span>
           </div>
         )}
@@ -217,7 +217,7 @@ export function OrderForm({
         <div className="flex items-center justify-between text-xs text-[var(--color-muted)] pt-1">
           <span>Total</span>
           <span className="tabular-nums text-[var(--color-foreground)]">
-            {totalNum > 0 ? `${formatPrice(totalNum, 2)} ${quote}` : "-"}
+            {totalNum > 0 ? `${formatPrice(totalNum, 2)} ${quote}` : ""}
           </span>
         </div>
 

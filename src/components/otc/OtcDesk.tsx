@@ -176,7 +176,7 @@ export function OtcDesk() {
               <span>
                 ≈{" "}
                 <span className={cn(belowMin && "text-[var(--color-down)]")}>
-                  {refPrice ? fmtSettle(notionalPreview) : "-"}
+                  {refPrice ? fmtSettle(notionalPreview) : ""}
                 </span>
               </span>
             </div>

@@ -62,7 +62,7 @@ export function OrderView({ orderId }: { orderId: string }) {
   const counterparty = iAmBuyer ? order.sellerName : order.buyerName;
 
   // For MOCK ads the taker drives the other side via this demo control. Real
-  // two-party trades omit it - each user acts their own role.
+  // two-party trades omit it each user acts their own role.
   const counterpartyAction: { action: P2POrderAction; label: string } | null = order.twoParty
     ? null
     : order.status === "PAID" && iAmBuyer
@@ -289,7 +289,7 @@ function ActionArea({
     return (
       <div className="flex items-center gap-2 text-[var(--color-up)]">
         <ShieldCheck className="h-5 w-5" />
-        <span className="font-medium">Trade complete - escrow released.</span>
+        <span className="font-medium">Trade complete escrow released.</span>
       </div>
     );
   }
@@ -303,7 +303,7 @@ function ActionArea({
   if (order.status === "DISPUTED") {
     return (
       <div className="flex items-center gap-2 text-[var(--color-down)]">
-        <ShieldAlert className="h-5 w-5" /> Under dispute - a moderator is reviewing.
+        <ShieldAlert className="h-5 w-5" /> Under dispute a moderator is reviewing.
       </div>
     );
   }

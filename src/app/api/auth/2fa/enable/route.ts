@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   }
   const secret = decryptSecret(user.twoFASecret);
   if (!secret || !verifyTotp(secret, String(code ?? ""))) {
-    return Response.json({ error: "That code is incorrect - try the current one." }, { status: 400 });
+    return Response.json({ error: "That code is incorrect try the current one." }, { status: 400 });
   }
 
   await prisma.user.update({ where: { id: userId }, data: { twoFAEnabled: true } });

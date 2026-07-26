@@ -68,7 +68,7 @@ export function MarketHeader({ pair }: { pair: string }) {
               ticker ? (isUp ? "text-[var(--color-up)]" : "text-[var(--color-down)]") : "text-[var(--color-foreground)]",
             )}
           >
-            {ticker ? formatPrice(ticker.last, ticker.last < 1 ? 4 : 2) : "-"}
+            {ticker ? formatPrice(ticker.last, ticker.last < 1 ? 4 : 2) : ""}
           </div>
           <div
             className={cn(
@@ -77,7 +77,7 @@ export function MarketHeader({ pair }: { pair: string }) {
             )}
           >
             {isUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-            {ticker ? formatPct(change) : "-"}
+            {ticker ? formatPct(change) : ""}
           </div>
         </div>
 
@@ -96,7 +96,7 @@ function Stat({ label, value }: { label: string; value: string | undefined | nul
   return (
     <div className="flex flex-col">
       <div className="text-[10px] uppercase tracking-wider text-[var(--color-muted)]">{label}</div>
-      <div className="text-sm tabular-nums">{value || "-"}</div>
+      <div className="text-sm tabular-nums">{value || ""}</div>
     </div>
   );
 }

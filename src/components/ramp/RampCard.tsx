@@ -38,7 +38,7 @@ export function RampCard() {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [executing, setExecuting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
-  // Real wallet balances (null = unknown/signed out - don't block the SELL guard on it).
+  // Real wallet balances (null = unknown/signed out don't block the SELL guard on it).
   const [balances, setBalances] = useState<Record<string, number> | null>(null);
 
   useEffect(() => {
@@ -150,7 +150,7 @@ export function RampCard() {
       const detail = `${smartQty(res.cryptoAmount)} ${res.cryptoSymbol} for ${fmtFiat(res.totalFiat)}`;
       setSuccess(
         res.status === "PENDING"
-          ? `Order received - ${verb.toLowerCase()} ${detail}. Settling via bank transfer.`
+          ? `Order received ${verb.toLowerCase()} ${detail}. Settling via bank transfer.`
           : `${verb} ${detail}`,
       );
       setAmount("");

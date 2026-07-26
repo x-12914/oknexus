@@ -82,7 +82,7 @@ export function TwoFactorCard({ initialEnabled }: { initialEnabled: boolean }) {
           </div>
           <p className="mt-1 max-w-md text-sm leading-relaxed text-[var(--color-muted)]">
             Require a code from an authenticator app (Google Authenticator, Authy) each time you sign
-            in - so a password alone isn&apos;t enough to access your account.
+            in so a password alone isn&apos;t enough to access your account.
           </p>
         </div>
         {step === "idle" ? (

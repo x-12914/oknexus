@@ -90,7 +90,7 @@ export function DepositPanel() {
 
       <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-500 mb-4 flex gap-2">
         <AlertTriangle className="h-4 w-4 shrink-0" />
-        Testnet only - send test coins on {chainInfo?.label ?? "the selected network"}. Never send
+        Testnet only send test coins on {chainInfo?.label ?? "the selected network"}. Never send
         real mainnet assets to this address.
       </div>
 

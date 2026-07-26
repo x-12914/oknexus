@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   }
 
   const parsed = Schema.safeParse(body);
-  // Always answer identically - never reveal whether an account exists.
+  // Always answer identically never reveal whether an account exists.
   if (parsed.success) {
     const email = parsed.data.email.trim().toLowerCase();
     const user = await prisma.user.findUnique({ where: { email } });

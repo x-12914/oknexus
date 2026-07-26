@@ -140,7 +140,7 @@ export function AlertsView() {
                         <span className="font-medium tabular-nums">{fmt(a.target)}</span>
                       </div>
                       <div className="text-xs text-[var(--color-muted)]">
-                        {price != null ? <>now {fmt(price)}</> : "-"}
+                        {price != null ? <>now {fmt(price)}</> : ""}
                       </div>
                     </div>
                   </div>

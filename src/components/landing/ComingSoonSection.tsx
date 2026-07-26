@@ -20,15 +20,15 @@ const GOLD_BORDER = "rgba(245,185,66,0.3)";
 
 /** Mirrors the "coming soon" section of the Oknexus preview. */
 const ROADMAP: Feature[] = [
-  { icon: Receipt, title: "Bills Payment", desc: "Pay utility bills, airtime, and data subscriptions directly from your balance - one place for it all." },
+  { icon: Receipt, title: "Bills Payment", desc: "Pay utility bills, airtime, and data subscriptions directly from your balance one place for it all." },
   { icon: Gift, title: "Gift Card Marketplace", desc: "Buy and sell gift cards securely within the platform, with the same protections as any other trade." },
   { icon: CreditCard, title: "Crypto Cards", desc: "A modern way to spend digital assets in everyday transactions, wherever cards are accepted." },
   { icon: Rocket, title: "Launchpad", desc: "List and launch new or existing tokens with a straightforward path to market." },
-  { icon: Code, title: "Developer API", desc: "Build on top of the ecosystem - integrate trading, wallets, and rates directly into your own products." },
+  { icon: Code, title: "Developer API", desc: "Build on top of the ecosystem integrate trading, wallets, and rates directly into your own products." },
   { icon: Globe, title: "Borderless Payments", desc: "Send and receive payments globally, with speed and security, wherever you're sending from or to." },
   { icon: PiggyBank, title: "Staking", desc: "Put idle balances to work through products built for holders, not just traders." },
   { icon: Sparkles, title: "Exclusive Airdrops", desc: "Early access and reward drops for the users who help shape the platform early." },
-  { icon: Coins, title: "OKN Native Token", desc: "One token, unlimited possibilities - the native token at the center of the ecosystem." },
+  { icon: Coins, title: "OKN Native Token", desc: "One token, unlimited possibilities the native token at the center of the ecosystem." },
 ];
 
 const SUB = "Discover our upcoming products and innovations designed to expand your financial possibilities.";
