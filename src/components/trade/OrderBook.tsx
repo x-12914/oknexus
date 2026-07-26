@@ -60,10 +60,10 @@ export function OrderBook({
 
         <div className="border-y border-[var(--color-border)] px-3 py-2 flex items-center justify-between text-xs">
           <div className={cn("tabular-nums font-medium", ticker && ticker.changePct24h >= 0 ? "text-[var(--color-up)]" : "text-[var(--color-down)]")}>
-            {ticker ? formatPrice(ticker.last, priceDecimals) : "—"}
+            {ticker ? formatPrice(ticker.last, priceDecimals) : "-"}
           </div>
           <div className="text-[var(--color-muted)] tabular-nums">
-            Spread {spread ? formatPrice(spread, priceDecimals) : "—"}
+            Spread {spread ? formatPrice(spread, priceDecimals) : "-"}
             {spreadPct ? ` (${spreadPct.toFixed(3)}%)` : ""}
           </div>
         </div>

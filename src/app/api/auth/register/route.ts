@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       email,
       passwordHash,
       name: parsed.data.name || null,
-      // emailVerified left null — account is inactive until OTP is confirmed.
+      // emailVerified left null - account is inactive until OTP is confirmed.
     },
   });
 
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
       await sendOtpEmail(user.email, user.name);
     } catch (err) {
       console.error("OTP send failed:", err);
-      // Non-fatal — client will show resend option.
+      // Non-fatal - client will show resend option.
     }
     return Response.json({ ok: true, needsVerification: true });
   }

@@ -45,8 +45,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Updating the hash invalidates this reset token (signed over the old hash) AND —
-  // via the tokenVersion bump — revokes every existing session, evicting an attacker
+  // Updating the hash invalidates this reset token (signed over the old hash) AND -
+  // via the tokenVersion bump - revokes every existing session, evicting an attacker
   // who was already logged in on the account being recovered.
   const passwordHash = await bcrypt.hash(parsed.data.password, 12);
   await prisma.user.update({

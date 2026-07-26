@@ -16,7 +16,7 @@ export function NewsletterForm() {
   if (done) {
     return (
       <div className="flex items-center gap-2 text-sm text-[var(--color-up)]">
-        <Check className="h-4 w-4" /> You&rsquo;re on the list — we&rsquo;ll be in touch.
+        <Check className="h-4 w-4" /> You&rsquo;re on the list - we&rsquo;ll be in touch.
       </div>
     );
   }

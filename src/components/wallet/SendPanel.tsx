@@ -66,7 +66,7 @@ export function SendPanel() {
       </Link>
       <h1 className="text-xl font-semibold mb-1">Send crypto</h1>
       <p className="text-sm text-[var(--color-muted)] mb-4">
-        Instantly transfer to another OKNexus account — free, with no network fees.
+        Instantly transfer to another OKNexus account - free, with no network fees.
       </p>
 
       <div className="rounded-2xl glass p-4 space-y-3">
@@ -174,7 +174,7 @@ export function SendPanel() {
       </div>
 
       <p className="mt-3 text-center text-xs leading-relaxed text-[var(--color-muted)]">
-        Transfers settle instantly inside OKNexus. Double-check the email — sent funds move
+        Transfers settle instantly inside OKNexus. Double-check the email - sent funds move
         immediately and can&apos;t be reversed.
       </p>
     </div>

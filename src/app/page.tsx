@@ -76,7 +76,7 @@ const FAQ = [
   },
   {
     q: "What can I trade?",
-    a: "Spot trading, instant swaps, a fiat buy/sell ramp, an OTC desk, and peer-to-peer — all in one account, across BTC, ETH, SOL, BNB, XRP, ADA, and USDT with live market data.",
+    a: "Spot trading, instant swaps, a fiat buy/sell ramp, an OTC desk, and peer-to-peer - all in one account, across BTC, ETH, SOL, BNB, XRP, ADA, and USDT with live market data.",
   },
   {
     q: "How do deposits and withdrawals work?",
@@ -84,7 +84,7 @@ const FAQ = [
   },
   {
     q: "Does OKNexus hold my funds?",
-    a: "Yes — OKNexus is a custodial exchange. Your balances live in your account and are protected by our security stack, and you can withdraw on-chain at any time.",
+    a: "Yes - OKNexus is a custodial exchange. Your balances live in your account and are protected by our security stack, and you can withdraw on-chain at any time.",
   },
   {
     q: "What are the fees?",
@@ -122,7 +122,7 @@ export default function LandingPage() {
             className="lp-fade-up mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[var(--color-muted)]"
             style={{ animationDelay: "170ms" }}
           >
-            Buy, sell, swap, and trade digital assets on one fast, secure platform — with live market
+            Buy, sell, swap, and trade digital assets on one fast, secure platform - with live market
             data, escrow-protected P2P, and real on-chain custody.
           </p>
           <div
@@ -231,7 +231,7 @@ export default function LandingPage() {
           <FeatureRow
             eyebrow="Spot trading"
             title="Pro-grade trading, made approachable"
-            desc="Trade on a fast matching engine with live candlestick charts, a real-time order book, and market and limit orders — the depth professionals expect, in an interface anyone can use."
+            desc="Trade on a fast matching engine with live candlestick charts, a real-time order book, and market and limit orders - the depth professionals expect, in an interface anyone can use."
             cta="Open the trade screen"
             href="/trade/BTC-USDT"
             visual={<SpotMock />}
@@ -240,7 +240,7 @@ export default function LandingPage() {
             flip
             eyebrow="Instant swap"
             title="Swap any two assets in one tap"
-            desc="Convert between assets at a locked, transparent rate that refreshes every few seconds. No order books to read — just choose, review the quote, and confirm."
+            desc="Convert between assets at a locked, transparent rate that refreshes every few seconds. No order books to read - just choose, review the quote, and confirm."
             cta="Try Instant Swap"
             href="/swap"
             visual={<SwapMock />}
@@ -248,7 +248,7 @@ export default function LandingPage() {
           <FeatureRow
             eyebrow="Peer-to-peer"
             title="Trade directly, protected by escrow"
-            desc="Post your own buy and sell ads or take someone else's. Crypto is locked in escrow the moment a trade opens and only released when payment is confirmed — with in-trade chat and dispute support."
+            desc="Post your own buy and sell ads or take someone else's. Crypto is locked in escrow the moment a trade opens and only released when payment is confirmed - with in-trade chat and dispute support."
             cta="Explore the P2P market"
             href="/p2p"
             visual={<P2PMock />}
@@ -627,7 +627,7 @@ function P2PMock() {
       <div className="mt-3 space-y-2">
         <div className="flex justify-start">
           <div className="max-w-[80%] rounded-lg bg-[var(--color-surface-2)] px-3 py-1.5 text-xs text-white">
-            Payment sent — check your bank.
+            Payment sent - check your bank.
           </div>
         </div>
         <div className="flex justify-end">

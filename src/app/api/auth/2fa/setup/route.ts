@@ -2,7 +2,7 @@ import { sessionUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { newTotpSecret, totpKeyUri, totpQrDataUri, encryptSecret } from "@/lib/totp";
 
-// Begin 2FA setup: generate a secret + QR. Stored (encrypted) as pending — 2FA is
+// Begin 2FA setup: generate a secret + QR. Stored (encrypted) as pending - 2FA is
 // only actually enabled once the user confirms a code at /api/auth/2fa/enable.
 export async function POST() {
   const userId = await sessionUserId();

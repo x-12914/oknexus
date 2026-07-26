@@ -76,8 +76,6 @@ body {
   color: var(--color-foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   line-height: 1.6;
-  height: 100%;
-  overflow: hidden;
 }
 
 /* Exodus-style typography: slight negative tracking on headings for a premium,

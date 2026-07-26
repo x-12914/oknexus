@@ -56,10 +56,10 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         setLoading(false);
         return;
       }
-      // Email not configured (dev mode) — sign in immediately.
+      // Email not configured (dev mode) - sign in immediately.
       const s = await signIn("credentials", { email, password, redirect: false });
       if (s?.error) {
-        setError("Account created — but sign-in failed. Please log in.");
+        setError("Account created - but sign-in failed. Please log in.");
         setLoading(false);
         return;
       }
@@ -88,10 +88,10 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         setLoading(false);
         return;
       }
-      // Email confirmed — sign in.
+      // Email confirmed - sign in.
       const s = await signIn("credentials", { email, password, redirect: false });
       if (s?.error) {
-        setError("Email verified — but sign-in failed. Please log in.");
+        setError("Email verified - but sign-in failed. Please log in.");
         setLoading(false);
         return;
       }

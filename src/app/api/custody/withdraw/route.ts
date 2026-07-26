@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return Response.json({ error: "Invalid request" }, { status: 400 });
 
   // 2FA-on-withdraw: when the account has 2FA, a fresh authenticator code is required
-  // to confirm — so a hijacked session can't drain funds without the device.
+  // to confirm - so a hijacked session can't drain funds without the device.
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { twoFAEnabled: true, twoFASecret: true },

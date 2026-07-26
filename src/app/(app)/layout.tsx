@@ -10,7 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const showVerifyBanner = Boolean(session?.user && !session.user.isEmailVerified);
 
   return (
-    <div className="flex h-[100dvh] w-full overflow-hidden">
+    <div className="fixed inset-0 flex overflow-hidden">
       <SideNav />
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar

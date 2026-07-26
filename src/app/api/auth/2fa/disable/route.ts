@@ -5,7 +5,7 @@ import { verifyTotpOnce, decryptSecret } from "@/lib/totp";
 import { notify } from "@/lib/notifications";
 import { rateLimit } from "@/lib/rate-limit";
 
-// Turn 2FA off — requires a valid current code, then clears the secret.
+// Turn 2FA off - requires a valid current code, then clears the secret.
 export async function POST(req: NextRequest) {
   const userId = await sessionUserId();
   if (!userId) return Response.json({ error: "Please sign in." }, { status: 401 });

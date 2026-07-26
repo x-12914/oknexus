@@ -78,7 +78,7 @@ export function LiveMarkets() {
               </div>
               <div className="text-right">
                 <div className="text-sm font-medium tabular-nums">
-                  {t ? `$${fmtPrice(t.last)}` : "—"}
+                  {t ? `$${fmtPrice(t.last)}` : "-"}
                 </div>
                 <div
                   className={cn(

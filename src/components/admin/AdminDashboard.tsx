@@ -130,7 +130,7 @@ function UsersTab() {
               <td className="px-3 py-2">
                 <div>{u.email}</div>
                 <div className="text-xs text-[var(--color-muted)]">
-                  {u.name ?? "—"} · {new Date(u.createdAt).toLocaleDateString()}
+                  {u.name ?? "-"} · {new Date(u.createdAt).toLocaleDateString()}
                 </div>
               </td>
               <td className="px-3 py-2">
@@ -317,7 +317,7 @@ function LedgerTab() {
             <tr key={r.id} className="border-t border-[var(--color-border)]">
               <td className="px-3 py-2">{r.userEmail}</td>
               <td className="px-3 py-2 text-[var(--color-muted)]">{r.type}</td>
-              <td className="px-3 py-2 text-[var(--color-muted)]">{r.memo ?? "—"}</td>
+              <td className="px-3 py-2 text-[var(--color-muted)]">{r.memo ?? "-"}</td>
               <td
                 className={cn(
                   "px-3 py-2 text-right tabular-nums",

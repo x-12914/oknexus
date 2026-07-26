@@ -18,7 +18,7 @@ export function WalletBadge() {
       <span className="tabular-nums">
         {total != null
           ? `$${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-          : "$—"}
+          : "$-"}
       </span>
     </Link>
   );

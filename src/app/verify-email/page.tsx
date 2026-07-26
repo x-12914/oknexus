@@ -24,7 +24,7 @@ export default async function VerifyEmailPage({
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-[var(--color-muted)]">
           {ok
-            ? "Thanks — your email is confirmed and your OKNexus account is fully set up."
+            ? "Thanks - your email is confirmed and your OKNexus account is fully set up."
             : "This verification link is no longer valid. Sign in and request a new one from your account."}
         </p>
         <Link

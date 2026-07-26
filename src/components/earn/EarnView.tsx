@@ -49,7 +49,7 @@ export function EarnView() {
       <div className="mx-auto max-w-3xl">
         <h1 className="text-xl font-semibold">Earn</h1>
         <p className="mt-1 text-sm text-[var(--color-muted)]">
-          Put idle assets to work. Rewards accrue every minute — unstake anytime.
+          Put idle assets to work. Rewards accrue every minute - unstake anytime.
         </p>
 
         <div className="mt-4 grid grid-cols-2 gap-3">

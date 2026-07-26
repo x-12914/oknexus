@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const alerts = await processPriceAlerts().catch((e) => ({ error: (e as Error).message }));
   const staking = await accrueStakes().catch((e) => ({ error: (e as Error).message }));
 
-  // Deposit scanning works under either custody backend — Turnkey (addresses only)
+  // Deposit scanning works under either custody backend - Turnkey (addresses only)
   // or the HD seed. Only skip when neither is configured.
   if (!turnkeyConfigured() && !process.env.CUSTODY_MNEMONIC) {
     return Response.json({ ok: true, stops, alerts, staking, reason: "custody not configured" });

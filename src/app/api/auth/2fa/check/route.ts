@@ -5,7 +5,7 @@ import { clientIp } from "@/lib/login-history";
 import { rateLimit } from "@/lib/rate-limit";
 
 // A real bcrypt hash (computed once) so the "no such user" path costs the same as a
-// genuine compare — equalises timing so this can't be used to enumerate accounts.
+// genuine compare - equalises timing so this can't be used to enumerate accounts.
 const DUMMY_HASH = bcrypt.hashSync("oknexus-timing-equalizer", 12);
 
 // Pre-login probe: validates the password and reports whether a 2FA code is needed,

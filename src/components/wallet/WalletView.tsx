@@ -75,7 +75,7 @@ export function WalletView() {
       <div className="rounded-2xl glass p-5 mb-5">
         <div className="text-sm text-[var(--color-muted)]">Estimated total value</div>
         <div className="mt-1 text-3xl font-semibold tabular-nums">
-          {data ? fmtUsd(data.totalUsd) : "—"}
+          {data ? fmtUsd(data.totalUsd) : "-"}
         </div>
         <div className="mt-1 text-xs text-[var(--color-muted)]">
           Demo balances · valued at live market prices

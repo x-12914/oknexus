@@ -69,7 +69,7 @@ export function WithdrawPanel() {
     setSubmitting(true);
     try {
       await api.custodyWithdraw(chain, symbol, amountNum, to.trim(), needCode ? code : undefined);
-      setOk("Withdrawal requested — broadcasting on-chain.");
+      setOk("Withdrawal requested - broadcasting on-chain.");
       setAmount("");
       setTo("");
       setCode("");
@@ -94,7 +94,7 @@ export function WithdrawPanel() {
 
       <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-500 mb-4 flex gap-2">
         <AlertTriangle className="h-4 w-4 shrink-0" />
-        Testnet only — withdrawals settle on {chainInfo?.label ?? "the selected network"}, sent from
+        Testnet only - withdrawals settle on {chainInfo?.label ?? "the selected network"}, sent from
         the exchange hot wallet.
       </div>
 
@@ -233,7 +233,7 @@ export function WithdrawPanel() {
                 className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2.5 text-sm tabular-nums outline-none focus:border-[var(--color-accent)]"
               />
               <p className="mt-1 text-[10px] text-[var(--color-muted)]">
-                2FA is on — enter your current code to confirm this withdrawal.
+                2FA is on - enter your current code to confirm this withdrawal.
               </p>
             </div>
           ) : null}

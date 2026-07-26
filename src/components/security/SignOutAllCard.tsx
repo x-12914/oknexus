@@ -18,7 +18,7 @@ export function SignOutAllCard() {
         setLoading(false);
         return;
       }
-      // This session's token is now stale too — end it cleanly and return to login.
+      // This session's token is now stale too - end it cleanly and return to login.
       await signOut({ callbackUrl: "/login" });
     } catch {
       setError("Something went wrong. Please try again.");
@@ -31,7 +31,7 @@ export function SignOutAllCard() {
       <h2 className="text-lg font-semibold">Active sessions</h2>
       <p className="mt-1 text-sm text-[var(--color-muted)]">
         Sign out of OKNexus on every device, including this one. Use this if you&apos;ve lost a
-        device or think someone else has access — you&apos;ll simply sign in again.
+        device or think someone else has access - you&apos;ll simply sign in again.
       </p>
       {error ? <div className="mt-3 text-sm text-[var(--color-down)]">{error}</div> : null}
       <button

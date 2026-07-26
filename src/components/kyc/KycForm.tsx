@@ -99,7 +99,7 @@ export function KycForm() {
             {status === "PENDING" ? "Re-submit" : "Submit for review"}
           </button>
           <p className="text-[11px] text-[var(--color-muted)] text-center">
-            Demo KYC — details are stored for manual admin review, not sent to a real provider.
+            Demo KYC - details are stored for manual admin review, not sent to a real provider.
           </p>
         </div>
       ) : null}
