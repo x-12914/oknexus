@@ -395,50 +395,60 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-[var(--color-border)]">
         <div className="mx-auto max-w-6xl px-4 py-14">
-          <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
-            <div className="max-w-xs">
+          <div className="grid gap-8 grid-cols-2 md:grid-cols-[1.3fr_1fr_1fr_1fr_1fr]">
+            <div className="col-span-2 md:col-span-1 max-w-xs">
               <Logo />
               <p className="mt-3 text-sm leading-relaxed text-[var(--color-muted)]">
-                Connecting you to the future of finance. One account for spot, swap, ramp, OTC, and P2P.
+                A single, secure venue to trade, swap, ramp and move digital assets - built on a compliance-first foundation.
               </p>
-              <div className="mt-5">
-                <div className="mb-2 text-sm font-medium text-white">Stay in the loop</div>
-                <NewsletterForm />
-              </div>
-              <SocialLinks className="mt-6" />
+              <SocialLinks className="mt-5" />
             </div>
             <FooterCol
-              title="Products"
+              title="TRADE"
               links={[
                 ["Spot Trading", "/trade/BTC-USDT"],
                 ["Instant Swap", "/swap"],
-                ["Buy & Sell", "/buy"],
+                ["Buy & Sell Crypto", "/buy"],
+                ["P2P Marketplace", "/p2p"],
                 ["OTC Desk", "/otc"],
-                ["P2P Trading", "/p2p"],
-              ]}
-            />
-            <FooterCol
-              title="Platform"
-              links={[
                 ["Wallet", "/wallet"],
-                ["Deposit", "/deposit"],
-                ["Withdraw", "/withdraw"],
-                ["Verify identity", "/kyc"],
               ]}
             />
             <FooterCol
-              title="Resources"
+              title="RESOURCES"
               links={[
-                ["Markets", "/trade/BTC-USDT"],
-                ["Security", "#security"],
-                ["FAQ", "#faq"],
-                ["Get started", "/register"],
+                ["Academy", "/explore"],
+                ["Blog", "/explore"],
+                ["Help Center", "/settings/support"],
+                ["Risk Disclosure", "/explore"],
+                ["Rate Calculator", "/swap"],
+                ["Crypto Converter", "/convert"],
+              ]}
+            />
+            <FooterCol
+              title="COMPANY"
+              links={[
+                ["About Oknexus", "/explore"],
+                ["Careers", "/explore"],
+                ["We Care", "/explore"],
+                ["Contact", "/settings/support"],
+                ["Newsletter", "/explore"],
+              ]}
+            />
+            <FooterCol
+              title="LEGAL"
+              links={[
+                ["Privacy Policy", "/explore"],
+                ["Terms of Service", "/explore"],
+                ["AML Policy", "/explore"],
+                ["KYC Policy", "/kyc"],
+                ["Risk Disclosure", "/explore"],
               ]}
             />
           </div>
           <div className="mt-12 flex flex-col gap-3 border-t border-[var(--color-border)] pt-6 text-xs text-[var(--color-muted)] sm:flex-row sm:items-center sm:justify-between">
             <span>© 2026 OKNexus Exchange. All rights reserved.</span>
-            <span>Demo platform · live market data via Binance · not financial advice.</span>
+            <span>Built for a secure, compliance-first digital asset ecosystem.</span>
           </div>
         </div>
       </footer>
@@ -490,7 +500,7 @@ function FeatureRow({
 function FooterCol({ title, links }: { title: string; links: [string, string][] }) {
   return (
     <div>
-      <div className="text-sm font-semibold text-white">{title}</div>
+      <div className="text-xs font-bold uppercase tracking-wider text-white">{title}</div>
       <ul className="mt-3 space-y-2.5">
         {links.map(([label, href]) => (
           <li key={label}>
