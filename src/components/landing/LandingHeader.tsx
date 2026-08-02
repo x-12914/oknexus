@@ -27,25 +27,25 @@ const MENUS: NavMenu[] = [
   {
     label: "Company",
     items: [
-      { href: SOON, label: "About Oknexus", desc: "Our mission and the team" },
-      { href: SOON, label: "Careers", desc: "Help build the future of finance" },
-      { href: SOON, label: "We Care", desc: "Community & social impact" },
+      { href: "/about", label: "About Oknexus", desc: "Our mission and the team" },
+      { href: "/careers", label: "Careers", desc: "Help build the future of finance" },
+      { href: "/we-care", label: "We Care", desc: "Community & social impact" },
     ],
   },
   {
     label: "Resources",
     items: [
-      { href: SOON, label: "Academy", desc: "Learn crypto from the ground up" },
-      { href: SOON, label: "Blog", desc: "News, insights & updates" },
-      { href: SOON, label: "Rate Calculator", desc: "Estimate fees before you trade" },
-      { href: SOON, label: "Crypto Converter", desc: "Live rates between any assets" },
+      { href: "/academy", label: "Academy", desc: "Learn crypto from the ground up" },
+      { href: "/blog", label: "Blog", desc: "News, insights & updates" },
+      { href: "/swap", label: "Rate Calculator", desc: "Estimate fees before you trade" },
+      { href: "/convert", label: "Crypto Converter", desc: "Live rates between any assets" },
     ],
   },
   {
     label: "Support",
     items: [
-      { href: SOON, label: "Help Center", desc: "Guides and answers, 24/7" },
-      { href: SOON, label: "Contact", desc: "Reach our support team" },
+      { href: "/settings/support", label: "Help Center", desc: "Guides and answers, 24/7" },
+      { href: "/settings/support", label: "Contact", desc: "Reach our support team" },
     ],
   },
 ];

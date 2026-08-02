@@ -417,8 +417,8 @@ export default function LandingPage() {
             <FooterCol
               title="RESOURCES"
               links={[
-                ["Academy", "/explore"],
-                ["Blog", "/explore"],
+                ["Academy", "/academy"],
+                ["Blog", "/blog"],
                 ["Help Center", "/settings/support"],
                 ["Risk Disclosure", "/explore"],
                 ["Rate Calculator", "/swap"],
@@ -428,11 +428,11 @@ export default function LandingPage() {
             <FooterCol
               title="COMPANY"
               links={[
-                ["About Oknexus", "/explore"],
-                ["Careers", "/explore"],
-                ["We Care", "/explore"],
+                ["About Oknexus", "/about"],
+                ["Careers", "/careers"],
+                ["We Care", "/we-care"],
                 ["Contact", "/settings/support"],
-                ["Newsletter", "/explore"],
+                ["Newsletter", "/blog"],
               ]}
             />
             <FooterCol
