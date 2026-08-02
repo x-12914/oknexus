@@ -37,8 +37,8 @@ const MENUS: NavMenu[] = [
     items: [
       { href: "/academy", label: "Academy", desc: "Learn crypto from the ground up" },
       { href: "/blog", label: "Blog", desc: "News, insights & updates" },
-      { href: "/swap", label: "Rate Calculator", desc: "Estimate fees before you trade" },
-      { href: "/convert", label: "Crypto Converter", desc: "Live rates between any assets" },
+      { href: "/rate-calculator", label: "Rate Calculator", desc: "Estimate fees before you trade" },
+      { href: "/crypto-converter", label: "Crypto Converter", desc: "Live rates between any assets" },
     ],
   },
   {

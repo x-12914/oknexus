@@ -421,8 +421,8 @@ export default function LandingPage() {
                 ["Blog", "/blog"],
                 ["Help Center", "/settings/support"],
                 ["Risk Disclosure", "/explore"],
-                ["Rate Calculator", "/swap"],
-                ["Crypto Converter", "/convert"],
+                ["Rate Calculator", "/rate-calculator"],
+                ["Crypto Converter", "/crypto-converter"],
               ]}
             />
             <FooterCol
