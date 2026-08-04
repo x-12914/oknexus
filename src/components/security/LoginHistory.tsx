@@ -18,9 +18,18 @@ function relative(ms: number, now: number): string {
 }
 
 export function LoginHistory({ events }: { events: Event[] }) {
-  // Compute relative times only after mount so server/client markup matches.
+  // Compute relative times only after mount so server/client markup matches. Set on the
+  // next frame (not synchronously in the effect) to keep the render pure; refresh each
+  // minute so "x ago" stays current.
   const [now, setNow] = useState<number | null>(null);
-  useEffect(() => setNow(Date.now()), []);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setNow(Date.now()));
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearInterval(id);
+    };
+  }, []);
 
   return (
     <div className="rounded-2xl glass p-6">

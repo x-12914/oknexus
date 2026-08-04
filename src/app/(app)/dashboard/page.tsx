@@ -26,8 +26,8 @@ const MOCK_USD_PRICES: Record<string, number> = {
   LTC: 82,
 };
 
-function toNumber(d: any): number {
-  return parseFloat(d.toString());
+function toNumber(d: unknown): number {
+  return parseFloat(String(d));
 }
 
 export default async function DashboardPage() {

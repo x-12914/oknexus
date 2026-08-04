@@ -13,7 +13,7 @@ import {
   Search,
   ArrowRight,
   Clock,
-  Sparkles,
+  type LucideIcon,
 } from "lucide-react";
 import { LandingHeader } from "@/components/landing/LandingHeader";
 import { SocialLinks } from "@/components/landing/SocialLinks";
@@ -43,7 +43,7 @@ const landingStyle = {
 
 type Track = {
   id: string;
-  icon: any;
+  icon: LucideIcon;
   title: string;
   desc: string;
   articles: { title: string; readTime: string; summary: string; tag: string }[];

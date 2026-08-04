@@ -13,6 +13,16 @@ const eslintConfig = defineConfig([
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
       ],
+      // Apostrophes/quotes in JSX text render correctly; this rule is noise for
+      // content-heavy marketing pages, so we turn it off project-wide.
+      "react/no-unescaped-entities": "off",
+    },
+  },
+  {
+    // Verification/screenshot scripts are quick throwaways — don't fail on unused args.
+    files: ["scripts/**"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": "off",
     },
   },
   // Override default ignores of eslint-config-next.

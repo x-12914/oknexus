@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { usePolling } from "@/hooks/usePolling";
@@ -17,14 +17,12 @@ export function EarnView() {
   const { data, refresh } = usePolling(() => api.earn(), 10000, []);
   const { data: wallet } = usePolling(() => api.wallet(), 10000, []);
 
-  // Extrapolate accrued rewards between polls so they visibly tick up.
-  const fetchedAt = useRef(Date.now());
-  const [, setTick] = useState(0);
+  // A client clock ticking every second so accrued rewards visibly grow. Updated only
+  // inside the interval callback (never synchronously in the effect) and read as plain
+  // state during render, so the render stays pure.
+  const [now, setNow] = useState(0);
   useEffect(() => {
-    fetchedAt.current = Date.now();
-  }, [data]);
-  useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -38,8 +36,10 @@ export function EarnView() {
 
   const priceOf = (s: string) => data.prices[s] ?? 0;
   const balanceOf = (s: string) => wallet?.items.find((i) => i.symbol === s)?.balance ?? 0;
+  // Accrued from the stake's creation to the client clock — matches the linear APY
+  // model the server settles on; falls back to the server value until the clock starts.
   const liveAccrued = (p: StakeView) =>
-    p.accrued + (p.principal * (p.apy / 100) * ((Date.now() - fetchedAt.current) / 1000)) / YEAR;
+    now > 0 ? (p.principal * (p.apy / 100) * ((now - p.createdAt) / 1000)) / YEAR : p.accrued;
 
   const totalStakedUsd = data.positions.reduce((s, p) => s + p.principal * priceOf(p.symbol), 0);
   const totalRewardUsd = data.positions.reduce((s, p) => s + liveAccrued(p) * priceOf(p.symbol), 0);
