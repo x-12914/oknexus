@@ -62,6 +62,9 @@ export async function applyDiditResult(
   status: string,
   decision: unknown,
 ): Promise<void> {
+  // Record the raw provider status on our session row (a no-op if we don't have it — e.g. a test webhook).
+  await prisma.kycSession.updateMany({ where: { sessionId }, data: { status } });
+
   // Prefer our stored session→user mapping over the (signed but external) vendor_data.
   const record = await prisma.kycSession.findUnique({
     where: { sessionId },
@@ -70,18 +73,24 @@ export async function applyDiditResult(
   const userId = record?.userId ?? vendorUserId;
   if (!userId) return;
 
+  // Only touch a user that actually exists. A test webhook (fake vendor_data) or a
+  // since-deleted account must ACK (200), not throw — a 500 makes Didit retry forever.
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+  if (!user) {
+    console.warn(`[didit] webhook for unresolved user (session ${sessionId}) — acknowledged, no-op`);
+    return;
+  }
+
   let kyc: KycStatus | null = null;
   if (status === "Declined") kyc = "REJECTED";
   else if (status === "In Review") kyc = "REVIEW";
   else if (status === "Approved") kyc = hasAmlHit(decision) ? "REVIEW" : "APPROVED";
   // Abandoned / Resubmitted / unknown → leave the user PENDING so they can retry.
-
-  await prisma.kycSession.updateMany({ where: { sessionId }, data: { status } });
   if (!kyc) return;
 
   const terminal = kyc === "APPROVED" || kyc === "REJECTED";
   await prisma.user.update({
-    where: { id: userId },
+    where: { id: user.id },
     data: { kycStatus: kyc, ...(terminal ? { kycReviewedAt: new Date() } : {}) },
   });
 

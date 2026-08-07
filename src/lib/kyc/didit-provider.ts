@@ -59,20 +59,30 @@ export async function createDiditSession(
   return { sessionId, url };
 }
 
-/** Verify a Didit webhook: HMAC-SHA256(raw body, secret) == X-Signature, timestamp fresh. */
+/**
+ * Verify a Didit webhook: HMAC-SHA256(raw body, secret) == X-Signature, timestamp fresh.
+ * Returns a reason on failure so the route can log *why* without exposing the secret/signature.
+ */
 export function verifyDiditWebhook(
   rawBody: string,
   signature: string | null,
   timestamp: string | null,
-): boolean {
+): { ok: boolean; reason?: string } {
   const secret = process.env.DIDIT_WEBHOOK_SECRET;
-  if (!secret || !signature || !timestamp) return false;
+  if (!secret) return { ok: false, reason: "no-secret-configured" };
+  if (!signature) return { ok: false, reason: "missing-signature-header" };
+  if (!timestamp) return { ok: false, reason: "missing-timestamp-header" };
   const ts = Number(timestamp);
-  if (!Number.isFinite(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return false; // replay guard
+  if (!Number.isFinite(ts)) return { ok: false, reason: "non-numeric-timestamp" };
+  const skew = Math.abs(Date.now() / 1000 - ts);
+  if (skew > 300) return { ok: false, reason: `stale-timestamp (skew ${Math.round(skew)}s)` }; // replay guard
   const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
   const a = Buffer.from(expected);
   const b = Buffer.from(signature);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    return { ok: false, reason: "signature-mismatch" };
+  }
+  return { ok: true };
 }
 
 export class DiditKycProvider implements KycProvider {
