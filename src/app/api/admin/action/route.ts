@@ -15,7 +15,7 @@ const Schema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("kyc"),
     userId: z.string(),
-    value: z.enum(["NONE", "PENDING", "APPROVED", "REJECTED"]),
+    value: z.enum(["NONE", "PENDING", "APPROVED", "REJECTED", "REVIEW"]),
   }),
   z.object({ type: z.literal("dispute"), orderId: z.string(), value: z.enum(["release", "refund"]) }),
   z.object({ type: z.literal("deactivateAd"), adId: z.string() }),

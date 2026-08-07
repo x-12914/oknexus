@@ -350,6 +350,11 @@ export const api = {
       body: JSON.stringify(input),
     }).then((r) => mutate<{ ok: true }>(r, "Submission failed")),
 
+  kycStart: () =>
+    fetch("/api/kyc/start", { method: "POST" }).then((r) =>
+      mutate<{ url: string }>(r, "Could not start verification"),
+    ),
+
   // ---- Admin ----
   adminOverview: () =>
     fetch("/api/admin/data?view=overview", { cache: "no-store" }).then((r) => j<AdminOverview>(r)),

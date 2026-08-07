@@ -27,7 +27,7 @@ export async function getOverview(): Promise<AdminOverview> {
   ] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { suspended: true } }),
-    prisma.user.count({ where: { kycStatus: "PENDING" } }),
+    prisma.user.count({ where: { kycStatus: { in: ["PENDING", "REVIEW"] } } }),
     prisma.order.count(),
     prisma.order.count({ where: { status: { in: ["OPEN", "PARTIAL"] } } }),
     prisma.p2POrder.count(),

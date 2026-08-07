@@ -65,10 +65,11 @@ export interface AdminAd {
 }
 
 export interface KycInfo {
-  status: string; // NONE | PENDING | APPROVED | REJECTED
+  status: string; // NONE | PENDING | APPROVED | REJECTED | REVIEW
   legalName: string | null;
   country: string | null;
   idNumber: string | null;
+  automated?: boolean; // true when a hosted provider (Didit) drives verification
 }
 
 export type AdminActionBody =

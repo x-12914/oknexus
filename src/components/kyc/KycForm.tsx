@@ -13,12 +13,32 @@ export function KycForm() {
   const [country, setCountry] = useState("");
   const [idNumber, setIdNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => api.kyc().then(setInfo).catch(() => {}), []);
   useEffect(() => {
     load();
   }, [load]);
+
+  // While a hosted verification is processing, poll so the result lands without a manual refresh.
+  useEffect(() => {
+    if (!info?.automated || info.status !== "PENDING") return;
+    const id = setInterval(load, 5000);
+    return () => clearInterval(id);
+  }, [info?.automated, info?.status, load]);
+
+  const startDidit = async () => {
+    setError(null);
+    setStarting(true);
+    try {
+      const { url } = await api.kycStart();
+      window.location.href = url; // hand off to the hosted verification flow
+    } catch (e) {
+      setError((e as Error).message);
+      setStarting(false);
+    }
+  };
 
   const submit = async () => {
     setError(null);
@@ -53,6 +73,11 @@ export function KycForm() {
       text: "Your last submission was rejected. Please re-submit.",
       icon: <XCircle className="h-4 w-4" />,
     },
+    REVIEW: {
+      cls: "border-amber-500/40 bg-amber-500/10 text-amber-500",
+      text: "Your verification is under manual review. We'll update you shortly.",
+      icon: <Clock className="h-4 w-4" />,
+    },
   };
   const b = banner[status];
 
@@ -66,7 +91,9 @@ export function KycForm() {
       </Link>
       <h1 className="text-xl font-semibold mb-1">Identity verification</h1>
       <p className="text-sm text-[var(--color-muted)] mb-4">
-        Verify your identity to unlock higher limits. A reviewer checks each submission.
+        {info?.automated
+          ? "Verify your identity to unlock higher limits. It only takes about a minute."
+          : "Verify your identity to unlock higher limits. A reviewer checks each submission."}
       </p>
 
       {b ? (
@@ -75,7 +102,34 @@ export function KycForm() {
         </div>
       ) : null}
 
-      {status !== "APPROVED" ? (
+      {status === "APPROVED" ? null : info?.automated ? (
+        status === "REVIEW" ? null : (
+          <div className="rounded-2xl glass p-4 space-y-3">
+            <p className="text-sm text-[var(--color-muted)]">
+              {status === "PENDING"
+                ? "We're processing your verification — this page updates automatically when it's ready."
+                : "You'll verify with a photo of your ID and a quick selfie. We never store your documents on our servers."}
+            </p>
+            {error ? <div className="text-sm text-[var(--color-down)]">{error}</div> : null}
+            <button
+              type="button"
+              disabled={starting}
+              onClick={startDidit}
+              className="btn-brand w-full py-3 rounded-xl font-medium flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              {status === "PENDING"
+                ? "Continue verification"
+                : status === "REJECTED"
+                  ? "Try again"
+                  : "Verify my identity"}
+            </button>
+            <p className="text-[11px] text-[var(--color-muted)] text-center">
+              You'll be securely redirected to complete verification, then brought back here.
+            </p>
+          </div>
+        )
+      ) : (
         <div className="rounded-2xl glass p-4 space-y-3">
           <Field label="Full legal name" value={legalName} onChange={setLegalName} placeholder="Ada Lovelace" />
           <Field label="Country of residence" value={country} onChange={setCountry} placeholder="Nigeria" />
@@ -102,7 +156,7 @@ export function KycForm() {
             Demo KYC details are stored for manual admin review, not sent to a real provider.
           </p>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

@@ -47,6 +47,7 @@ model User {
   notifications Notification[]
   priceAlerts   PriceAlert[]
   stakes        StakePosition[]
+  kycSessions   KycSession[]
 
   depositAddresses DepositAddress[]
   deposits         Deposit[]
@@ -59,11 +60,28 @@ enum UserRole {
   SUPPORT
 }
 
+/// A hosted identity-verification session with a provider (Didit) — links the
+/// provider's session id back to our user and tracks the latest reported status.
+model KycSession {
+  id        String   @id @default(cuid())
+  userId    String
+  provider  String // "didit"
+  sessionId String   @unique
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
 enum KycStatus {
   NONE
   PENDING
   APPROVED
   REJECTED
+  REVIEW // passed automated checks but flagged (e.g. AML hit) — needs manual EDD
 }
 
 model Account {

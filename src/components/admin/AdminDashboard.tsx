@@ -156,16 +156,16 @@ function UsersTab() {
                       "text-xs",
                       u.kycStatus === "APPROVED"
                         ? "text-[var(--color-up)]"
-                        : u.kycStatus === "PENDING"
+                        : u.kycStatus === "PENDING" || u.kycStatus === "REVIEW"
                           ? "text-amber-500"
                           : u.kycStatus === "REJECTED"
                             ? "text-[var(--color-down)]"
                             : "text-[var(--color-muted)]",
                     )}
                   >
-                    {u.kycStatus}
+                    {u.kycStatus === "REVIEW" ? "REVIEW · AML" : u.kycStatus}
                   </span>
-                  {u.kycStatus === "PENDING" ? (
+                  {u.kycStatus === "PENDING" || u.kycStatus === "REVIEW" ? (
                     <>
                       <button
                         type="button"
