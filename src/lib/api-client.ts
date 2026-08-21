@@ -32,6 +32,7 @@ import type { NotificationView } from "@/lib/notification-types";
 import type { Analytics } from "@/lib/analytics-types";
 import type { PriceAlertView } from "@/lib/price-alert-types";
 import type { EarnData, StakeView } from "@/lib/earn-types";
+import type { PayoutConfig, PayoutQuote } from "@/lib/ramp/types";
 import type {
   CustodyConfig,
   DepositAddressInfo,
@@ -262,6 +263,18 @@ export const api = {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ quoteId }),
     }).then((r) => mutate<RampResult>(r, "Payment failed")),
+
+  payoutConfig: () =>
+    fetch("/api/ramp/payout/config", { cache: "no-store" }).then((r) =>
+      j<{ configured: boolean; config: PayoutConfig | null }>(r),
+    ),
+
+  payoutQuote: (input: { fromSymbol: string; fromAmount?: number; fiatAmount?: number }) =>
+    fetch("/api/ramp/payout/quote", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    }).then((r) => mutate<PayoutQuote>(r, "Could not price this payout")),
 
   otcConfig: () =>
     fetch("/api/otc/config", { cache: "no-store" }).then((r) => j<OtcConfig>(r)),
