@@ -42,3 +42,19 @@ export interface PayoutQuote {
   feeFiat: number;
   expiresAt: number; // ms epoch
 }
+
+export interface FiatPayoutView {
+  id: string;
+  status: string;
+  fromSymbol: string;
+  fromAmount: number;
+  fiatCode: string;
+  fiatAmount: number;
+  effectiveRate: number;
+  feeFiat: number;
+  bankName: string;
+  /** Masked — the full number is never sent back to the client. */
+  accountNumber: string;
+  error: string | null;
+  createdAt: number;
+}

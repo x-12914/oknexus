@@ -93,6 +93,7 @@ interface RawQuote {
       amount?: string;
       settlement_amount?: string;
       expires_at?: string;
+      status?: string;
       exchange_rate?: { rate?: string; effective_rate?: string };
     };
   };
@@ -131,7 +132,12 @@ export async function quotePayout(input: QuotePayoutInput): Promise<PayoutQuote>
 
   const p = res.data?.data?.payout;
   if (!p?.quote_id || !p.id) throw new Error("Payout provider returned an unusable quote");
+  return normalizeQuote(p);
+}
 
+type RawPayout = NonNullable<NonNullable<RawQuote["data"]>["payout"]>;
+
+function normalizeQuote(p: RawPayout): PayoutQuote {
   const fromAmount = num(p.amount);
   const fiatAmount = num(p.settlement_amount);
   const marketRate = num(p.exchange_rate?.rate);
@@ -144,9 +150,9 @@ export async function quotePayout(input: QuotePayoutInput): Promise<PayoutQuote>
   const feeFiat = marketRate > 0 ? Math.max(0, fromAmount * marketRate - fiatAmount) : 0;
 
   return {
-    quoteId: p.quote_id,
-    payoutId: p.id,
-    fromSymbol: p.from_asset ?? fromSymbol,
+    quoteId: p.quote_id ?? "",
+    payoutId: p.id ?? "",
+    fromSymbol: p.from_asset ?? "",
     fromAmount,
     fiatCode: p.to_currency ?? FIAT,
     fiatAmount,
@@ -158,27 +164,67 @@ export async function quotePayout(input: QuotePayoutInput): Promise<PayoutQuote>
   };
 }
 
+/** A quote re-read from the provider, plus the lifecycle status it reports. */
+export interface FetchedQuote extends PayoutQuote {
+  /** "QUOTE" while still unspent; anything else means it was already used. */
+  providerStatus: string;
+}
+
+/**
+ * Re-read a quote from the provider by its uuid. The client only ever sends us
+ * an id, never amounts — this is the authoritative source for what gets locked,
+ * so a tampered request can't inflate the payout.
+ *
+ * Note the provider's `quote_id` ("QT2_…") is NOT accepted here; this route
+ * takes the uuid and 400s on anything else.
+ */
+export async function fetchQuote(payoutId: string): Promise<FetchedQuote> {
+  const res = await bitnobRequest<RawQuote>("GET", `/api/payouts/${encodeURIComponent(payoutId)}`);
+  if (!res.ok) throw new Error(res.error ?? "Could not find that quote");
+  const p = res.data?.data?.payout;
+  if (!p?.quote_id || !p.id) throw new Error("Payout provider returned an unusable quote");
+  return { ...normalizeQuote(p), providerStatus: String(p.status ?? "") };
+}
+
+/** Which leg of the two-step commit failed — decides refund vs. reconcile. */
+export class PayoutStepError extends Error {
+  constructor(
+    public step: "initialize" | "finalize",
+    message: string,
+  ) {
+    super(message);
+    this.name = "PayoutStepError";
+  }
+}
+
 export interface ExecutePayoutInput {
-  quoteId: string;
+  /** The provider's payout uuid, not the "QT2_…" quote id. */
+  payoutId: string;
   bankCode: string;
   accountNumber: string;
 }
 
 /**
- * Commits a quote. MOVES REAL MONEY — both calls are behind the
+ * Commits a quote. MOVES REAL MONEY — both calls sit behind the
  * BITNOB_ALLOW_LIVE_PAYOUTS gate in the client.
+ *
+ * The two legs fail very differently: a failed `initialize` has committed
+ * nothing and is safe to refund, whereas a failed `finalize` may or may not
+ * have been accepted, so the caller must reconcile it rather than refund.
  */
-export async function executePayout(input: ExecutePayoutInput): Promise<{ payoutId: string }> {
-  const init = await initializePayout(input.quoteId, {
+export async function executePayout(input: ExecutePayoutInput): Promise<void> {
+  const init = await initializePayout(input.payoutId, {
     country: COUNTRY,
     destination_type: "bank",
     bank_code: input.bankCode,
     account_number: input.accountNumber,
   });
-  if (!init.ok) throw new Error(init.error ?? "Could not initialize the payout");
+  if (!init.ok) {
+    throw new PayoutStepError("initialize", init.error ?? "Could not initialize the payout");
+  }
 
-  const done = await finalizePayout(input.quoteId);
-  if (!done.ok) throw new Error(done.error ?? "Could not finalize the payout");
-
-  return { payoutId: input.quoteId };
+  const done = await finalizePayout(input.payoutId);
+  if (!done.ok) {
+    throw new PayoutStepError("finalize", done.error ?? "Could not finalize the payout");
+  }
 }

@@ -39,17 +39,29 @@ async function usdPriceMap(): Promise<Map<string, number>> {
   return m;
 }
 
-/** The user's non-failed withdrawal usage over the last 24h vs the configured cap. */
+/**
+ * The user's non-failed withdrawal usage over the last 24h vs the configured cap.
+ *
+ * Counts BOTH rails: on-chain withdrawals and fiat off-ramp payouts. They drain
+ * the same balances, so leaving payouts out would make the cap trivially
+ * bypassable by cashing out to a bank instead of an address.
+ */
 export async function dailyLimitStatus(userId: string): Promise<DailyLimitStatus> {
   const since = new Date(Date.now() - 24 * 3600 * 1000);
-  const [rows, prices] = await Promise.all([
+  const [rows, payouts, prices] = await Promise.all([
     prisma.withdrawal.findMany({
       where: { userId, status: { not: "FAILED" }, createdAt: { gte: since } },
       select: { symbol: true, amount: true },
     }),
+    prisma.fiatPayout.findMany({
+      where: { userId, status: { not: "FAILED" }, createdAt: { gte: since } },
+      select: { fromSymbol: true, fromAmount: true },
+    }),
     usdPriceMap(),
   ]);
-  const usedUsd = rows.reduce((s, r) => s + Number(r.amount) * (prices.get(r.symbol) ?? 0), 0);
+  const usedUsd =
+    rows.reduce((s, r) => s + Number(r.amount) * (prices.get(r.symbol) ?? 0), 0) +
+    payouts.reduce((s, r) => s + Number(r.fromAmount) * (prices.get(r.fromSymbol) ?? 0), 0);
   return { limitUsd: DAILY_LIMIT_USD, usedUsd, remainingUsd: Math.max(0, DAILY_LIMIT_USD - usedUsd) };
 }
 

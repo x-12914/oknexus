@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Search, AlertCircle, Landmark } from "lucide-react";
+import { Loader2, Search, AlertCircle, Landmark, CheckCircle2 } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
-import type { PayoutBank, PayoutConfig, PayoutQuote } from "@/lib/ramp/types";
+import type { PayoutBank, PayoutConfig, PayoutQuote, FiatPayoutView } from "@/lib/ramp/types";
 
 type Mode = "fiat" | "crypto";
 
@@ -38,6 +38,11 @@ export function NgnPayoutPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [needs2FA, setNeeds2FA] = useState(false);
+  const [code, setCode] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState<FiatPayoutView | null>(null);
+
   // Never read Date.now() during render — React 19's purity rule rejects it and
   // it would desync hydration. A ticking state value drives the countdown.
   const [now, setNow] = useState(0);
@@ -61,6 +66,11 @@ export function NgnPayoutPanel() {
         else setUnavailable(true);
       })
       .catch(() => setUnavailable(true));
+    // Whether this account needs an authenticator code to release funds.
+    api
+      .payoutControls()
+      .then((r) => setNeeds2FA(r.needs2FA))
+      .catch(() => {});
   }, []);
 
   const accountRe = useMemo(
@@ -109,6 +119,29 @@ export function NgnPayoutPanel() {
     return () => clearTimeout(t);
   }, [fetchQuote]);
 
+  const submit = useCallback(async () => {
+    if (!quote || !bank) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await api.payoutExecute({
+        // Only ids travel — the server re-reads the quote for the real amount.
+        payoutId: quote.payoutId,
+        bankCode: bank.code,
+        accountNumber: account,
+        ...(needs2FA ? { code } : {}),
+      });
+      setDone(result);
+      setQuote(null);
+      setAmount("");
+      setCode("");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [quote, bank, account, needs2FA, code]);
+
   const secondsLeft = quote && now ? Math.max(0, Math.floor((quote.expiresAt - now) / 1000)) : 0;
   const expired = Boolean(quote) && now > 0 && secondsLeft === 0;
 
@@ -122,7 +155,38 @@ export function NgnPayoutPanel() {
     );
   }
 
-  const canSubmit = Boolean(quote) && !expired && accountValid && bank !== null && !loading;
+  if (done) {
+    return (
+      <div className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+        <div className="flex items-center gap-2 text-[var(--color-up)]">
+          <CheckCircle2 className="h-5 w-5" />
+          <h2 className="text-lg font-semibold">Payout sent</h2>
+        </div>
+        <p className="text-sm text-[var(--color-foreground)]">
+          {fmt(done.fiatAmount)} {done.fiatCode} to {done.bankName} {done.accountNumber}
+        </p>
+        <p className="text-sm text-[var(--color-muted)]">
+          {fmt(done.fromAmount, 6)} {done.fromSymbol} debited from your balance.
+        </p>
+        <button
+          type="button"
+          onClick={() => setDone(null)}
+          className="text-sm font-medium text-[var(--color-accent)] hover:underline"
+        >
+          Make another withdrawal
+        </button>
+      </div>
+    );
+  }
+
+  const canSubmit =
+    Boolean(quote) &&
+    !expired &&
+    accountValid &&
+    bank !== null &&
+    !loading &&
+    !submitting &&
+    (!needs2FA || code.length === 6);
 
   return (
     <div className="space-y-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
@@ -252,6 +316,24 @@ export function NgnPayoutPanel() {
         )}
       </div>
 
+      {needs2FA && (
+        <div className="space-y-2">
+          <span className="text-sm font-medium text-[var(--color-foreground)]">
+            Authenticator code
+          </span>
+          <input
+            inputMode="numeric"
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="123456"
+            className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2.5 text-sm tracking-widest text-[var(--color-foreground)] outline-none"
+          />
+          <p className="text-xs text-[var(--color-muted)]">
+            Required because two-factor authentication is on for this account.
+          </p>
+        </div>
+      )}
+
       {error && (
         <div className="flex items-start gap-2 rounded-xl bg-[var(--color-down-bg)] p-3 text-sm text-[var(--color-down)]">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -283,10 +365,12 @@ export function NgnPayoutPanel() {
 
       <button
         type="button"
+        onClick={submit}
         disabled={!canSubmit}
-        className="w-full rounded-xl bg-[var(--color-accent)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[var(--color-accent-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[var(--color-accent-hover)] disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {loading ? "Pricing…" : "Withdraw"}
+        {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+        {submitting ? "Sending…" : loading ? "Pricing…" : "Withdraw"}
       </button>
     </div>
   );

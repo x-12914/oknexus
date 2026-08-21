@@ -52,6 +52,7 @@ model User {
   depositAddresses DepositAddress[]
   deposits         Deposit[]
   withdrawals      Withdrawal[]
+  fiatPayouts      FiatPayout[]
 }
 
 enum UserRole {
@@ -549,6 +550,49 @@ model Withdrawal {
   error     String?
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+// ---------- Fiat off-ramp (crypto -> local bank, via a payout provider) ----------
+
+/// Lifecycle of a provider payout. Mirrors Withdrawal: funds are LOCKED at
+/// request and only leave the account once the provider accepts, so a failure
+/// before hand-off can refund without ever having debited.
+enum FiatPayoutStatus {
+  REQUESTED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model FiatPayout {
+  id               String           @id @default(cuid())
+  userId           String
+  provider         String           @default("bitnob")
+  /// Provider quote id (e.g. "QT2_123"); the handle we initialize/finalize against.
+  providerQuoteId  String?
+  /// Unique: the provider's payout uuid is our idempotency key, so a
+  /// double-submitted quote hits a constraint instead of paying twice.
+  providerPayoutId String?          @unique
+  fromSymbol       String
+  fromAmount       Decimal          @db.Decimal(30, 10)
+  fiatCode         String
+  fiatAmount       Decimal          @db.Decimal(30, 10)
+  effectiveRate    Decimal          @db.Decimal(30, 10)
+  /// Provider margin in fiat, derived from the rate spread (their fee field is always 0).
+  feeFiat          Decimal          @default(0) @db.Decimal(30, 10)
+  country          String
+  bankCode         String
+  bankName         String
+  accountNumber    String
+  status           FiatPayoutStatus @default(REQUESTED)
+  error            String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
