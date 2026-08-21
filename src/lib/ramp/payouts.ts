@@ -5,6 +5,7 @@ import { withLedger, lock, unlock, settleLocked, quantize } from "@/lib/ledger";
 import { notify } from "@/lib/notifications";
 import { assertWithinDailyLimit } from "@/lib/custody/withdrawals";
 import { fetchQuote, executePayout, getPayoutConfig, PayoutStepError } from "./bitnob-payout";
+import { livePayoutsEnabled } from "@/lib/bitnob";
 import type { FiatPayoutView } from "./types";
 
 export type { FiatPayoutView };
@@ -52,6 +53,13 @@ export async function requestPayout(
   userId: string,
   input: RequestPayoutInput,
 ): Promise<FiatPayoutView> {
+  // Checked before anything is written or locked. The gate throws from inside
+  // initializePayout, which would otherwise surface as an ambiguous send and
+  // strand the funds LOCKED for a rejection that committed nothing.
+  if (!livePayoutsEnabled()) {
+    throw new Error("Payouts are currently disabled.");
+  }
+
   const config = await getPayoutConfig();
 
   const bank = config.banks.find((b) => b.code === input.bankCode);

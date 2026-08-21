@@ -225,6 +225,10 @@ export async function createPayoutQuote(input: PayoutQuoteInput): Promise<Bitnob
  * stray call in a dev branch would debit the real float, because there is no
  * sandbox URL to accidentally be pointed at instead.
  */
+export function livePayoutsEnabled(): boolean {
+  return process.env.BITNOB_ALLOW_LIVE_PAYOUTS === "true";
+}
+
 function assertLivePayoutsAllowed(step: string): void {
   if (process.env.BITNOB_ALLOW_LIVE_PAYOUTS !== "true") {
     throw new Error(
