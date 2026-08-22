@@ -24,6 +24,8 @@ function describeAuthError(code: string): string {
       return "This account has been suspended. Contact support if you think that's a mistake.";
     case "OAuthAccountNotLinked":
       return "An OKNexus account already uses that email address. Sign in with your password first, then link the provider from Settings → Security.";
+    case "CredentialsSignin":
+      return "Invalid email or password.";
     case "AccessDenied":
       return "That sign-in was declined. Please try again or use your email and password.";
     case "Configuration":
