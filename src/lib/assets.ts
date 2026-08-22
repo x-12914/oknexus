@@ -1,4 +1,19 @@
-// Canonical wallet assets + the demo balance new accounts are seeded with.
+// Canonical wallet assets, plus the demo balance new accounts USED to be seeded
+// with unconditionally.
+//
+// That seed is now opt-in. Once a real withdrawal rail exists, handing every
+// registration 10,000 USDT of spendable balance means anyone who signs up can
+// convert demo money into real naira up to the provider float. Demo balances
+// and live payouts cannot both be on by default.
+
+/**
+ * Whether new accounts receive demo balances. Off unless explicitly enabled,
+ * so a fresh or misconfigured environment fails closed rather than generous.
+ */
+export function demoSeedEnabled(): boolean {
+  return process.env.ENABLE_DEMO_SEED === "true";
+}
+
 export const WALLET_ASSETS: {
   symbol: string;
   name: string;

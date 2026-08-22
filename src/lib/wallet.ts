@@ -1,7 +1,7 @@
 import { LedgerAccount, LedgerType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getExchange } from "@/lib/exchange";
-import { WALLET_ASSETS } from "@/lib/assets";
+import { WALLET_ASSETS, demoSeedEnabled } from "@/lib/assets";
 import { ensureAssets } from "@/lib/seed";
 import type { Portfolio } from "@/lib/wallet-types";
 
@@ -22,16 +22,18 @@ export async function ensureWallets(userId: string): Promise<void> {
 
   try {
     await prisma.$transaction(async (tx) => {
+      const seeding = demoSeedEnabled();
       for (const a of missing) {
-        await tx.wallet.create({ data: { userId, symbol: a.symbol, balance: a.seed } });
-        if (a.seed > 0) {
+        const seed = seeding ? a.seed : 0;
+        await tx.wallet.create({ data: { userId, symbol: a.symbol, balance: seed } });
+        if (seed > 0) {
           await tx.ledgerEntry.create({
             data: {
               userId,
               symbol: a.symbol,
               account: LedgerAccount.AVAILABLE,
-              delta: a.seed,
-              balanceAfter: a.seed,
+              delta: seed,
+              balanceAfter: seed,
               type: LedgerType.SEED,
               memo: "Welcome demo balance",
             },

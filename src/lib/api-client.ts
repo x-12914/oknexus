@@ -287,6 +287,11 @@ export const api = {
       { cache: "no-store" },
     ).then((r) => mutate<ResolvedAccount>(r, "Could not verify that account")),
 
+  payoutHistory: () =>
+    fetch("/api/ramp/payout/history", { cache: "no-store" }).then((r) =>
+      j<{ payouts: FiatPayoutView[] }>(r),
+    ),
+
   payoutControls: () =>
     fetch("/api/ramp/payout/execute", { cache: "no-store" }).then((r) =>
       j<{ needs2FA: boolean }>(r),

@@ -12,7 +12,7 @@ import {
   lookupAccount,
   PayoutStepError,
 } from "./bitnob-payout";
-import { livePayoutsEnabled, bitnobConfigured } from "@/lib/bitnob";
+import { livePayoutsEnabled, bitnobConfigured, getCompanyBalances } from "@/lib/bitnob";
 import type { FiatPayoutView } from "./types";
 
 export type { FiatPayoutView };
@@ -395,4 +395,60 @@ export async function listPayouts(userId: string, take = 20): Promise<FiatPayout
     take,
   });
   return rows.map(toView);
+}
+
+
+/**
+ * Provider float monitoring.
+ *
+ * Running dry is not catastrophic — a payout that can't be funded fails at
+ * initialize and refunds — but it turns every withdrawal into a failure with no
+ * warning, so it is worth knowing before users find out.
+ */
+const FLOAT_MIN = Number(process.env.BITNOB_FLOAT_MIN ?? 5);
+const WARN_EVERY_MS = 6 * 3600 * 1000;
+/** In-process, so a restart re-arms the warning. Acceptable for a single worker. */
+let lastFloatWarnAt = 0;
+
+export interface FloatAccount {
+  symbol: string;
+  available: number;
+  low: boolean;
+}
+
+/** Parse "19.63775 USDT" — the raw field is in base units that differ per asset. */
+function parseFormatted(formatted: string | undefined, raw: string | undefined): number {
+  const fromFormatted = Number.parseFloat(String(formatted ?? "").trim());
+  if (Number.isFinite(fromFormatted)) return fromFormatted;
+  const fromRaw = Number(raw);
+  return Number.isFinite(fromRaw) ? fromRaw : 0;
+}
+
+export async function checkPayoutFloat(now = Date.now()): Promise<FloatAccount[]> {
+  if (!bitnobConfigured()) return [];
+  const accounts = await getCompanyBalances();
+
+  const result: FloatAccount[] = accounts
+    .filter((a) => a.currency === "USDT" || a.currency === "USDC")
+    .map((a) => {
+      const available = parseFormatted(a.available_balance_formatted, a.available_balance);
+      return { symbol: a.currency, available, low: available < FLOAT_MIN };
+    });
+
+  // Payouts draw from whichever stablecoin is funded, so only warn when the
+  // combined balance is short — one empty account is normal.
+  const total = result.reduce((sum, a) => sum + a.available, 0);
+  if (total < FLOAT_MIN && now - lastFloatWarnAt > WARN_EVERY_MS) {
+    lastFloatWarnAt = now;
+    const admins = await prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
+    for (const a of admins) {
+      await notify(a.id, {
+        type: "SYSTEM",
+        title: "Payout float is low",
+        body: `Only ${total.toFixed(2)} left at the payout provider. Bank withdrawals will start failing once it runs out.`,
+        href: "/admin",
+      });
+    }
+  }
+  return result;
 }
