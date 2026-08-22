@@ -438,8 +438,8 @@ export default function LandingPage() {
             <FooterCol
               title="LEGAL"
               links={[
-                ["Privacy Policy", "/explore"],
-                ["Terms of Service", "/explore"],
+                ["Privacy Policy", "/privacy"],
+                ["Terms of Service", "/terms"],
                 ["AML Policy", "/explore"],
                 ["KYC Policy", "/kyc"],
                 ["Risk Disclosure", "/explore"],

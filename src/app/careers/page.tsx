@@ -301,8 +301,8 @@ export default function CareersPage() {
             <div>
               <div className="text-xs font-bold uppercase tracking-wider text-white">LEGAL</div>
               <ul className="mt-3 space-y-2.5 text-sm text-[var(--color-muted)]">
-                <li><Link href="/explore" className="hover:text-white">Privacy Policy</Link></li>
-                <li><Link href="/explore" className="hover:text-white">Terms of Service</Link></li>
+                <li><Link href="/privacy" className="hover:text-white">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="hover:text-white">Terms of Service</Link></li>
                 <li><Link href="/explore" className="hover:text-white">AML Policy</Link></li>
                 <li><Link href="/kyc" className="hover:text-white">KYC Policy</Link></li>
                 <li><Link href="/explore" className="hover:text-white">Risk Disclosure</Link></li>
