@@ -251,10 +251,19 @@ export class PayoutStepError extends Error {
 }
 
 export interface ExecutePayoutInput {
-  /** The provider's payout uuid, not the "QT2_…" quote id. */
-  payoutId: string;
+  /**
+   * The provider's "QT2_…" quote id — NOT the uuid.
+   *
+   * The same path shape takes different identifiers depending on the verb:
+   * GET /api/payouts/{uuid} reads a payout, but POST .../initialize and
+   * .../finalize only accept the quote id and 404 on the uuid. This asymmetry
+   * is undocumented and cost a long afternoon; do not "tidy" it into one id.
+   */
+  quoteId: string;
   bankCode: string;
   accountNumber: string;
+  /** Provider-resolved holder name, not user-supplied. */
+  accountName: string;
 }
 
 /**
@@ -264,20 +273,33 @@ export interface ExecutePayoutInput {
  * The two legs fail very differently: a failed `initialize` has committed
  * nothing and is safe to refund, whereas a failed `finalize` may or may not
  * have been accepted, so the caller must reconcile it rather than refund.
+ *
+ * Returns the provider's payout id from the initialize response, which is the
+ * handle the reconciler polls.
  */
-export async function executePayout(input: ExecutePayoutInput): Promise<void> {
-  const init = await initializePayout(input.payoutId, {
-    country: COUNTRY,
-    destination_type: "bank",
-    bank_code: input.bankCode,
-    account_number: input.accountNumber,
+export async function executePayout(input: ExecutePayoutInput): Promise<string | null> {
+  // Recipient details go under `beneficiary`. The API rejects anything else
+  // with "beneficiary_info is required", which names an internal field rather
+  // than the one it actually accepts.
+  const init = await initializePayout(input.quoteId, {
+    beneficiary: {
+      destination_type: "bank",
+      country: COUNTRY,
+      bank_code: input.bankCode,
+      account_number: input.accountNumber,
+      account_name: input.accountName,
+    },
   });
   if (!init.ok) {
     throw new PayoutStepError("initialize", init.error ?? "Could not initialize the payout");
   }
 
-  const done = await finalizePayout(input.payoutId);
+  const initialized = init.data as RawQuote | null;
+  const payoutId = initialized?.data?.payout?.id ?? null;
+
+  const done = await finalizePayout(input.quoteId);
   if (!done.ok) {
     throw new PayoutStepError("finalize", done.error ?? "Could not finalize the payout");
   }
+  return payoutId;
 }

@@ -182,11 +182,21 @@ export async function requestPayout(
   }
 
   try {
-    await executePayout({
-      payoutId: quote.payoutId,
+    const providerId = await executePayout({
+      // initialize/finalize take the QT2_ quote id; only GET takes the uuid.
+      quoteId: quote.quoteId,
       bankCode: bank.code,
       accountNumber: input.accountNumber,
+      accountName: resolved.accountName,
     });
+    // Track whatever id the provider hands back, so the reconciler polls the
+    // record the payout actually lives on rather than the one we quoted.
+    if (providerId && providerId !== quote.payoutId) {
+      await prisma.fiatPayout.update({
+        where: { id: row.id },
+        data: { providerPayoutId: providerId },
+      });
+    }
   } catch (e) {
     const message = String((e as Error).message).slice(0, 300);
 
