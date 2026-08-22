@@ -32,7 +32,12 @@ import type { NotificationView } from "@/lib/notification-types";
 import type { Analytics } from "@/lib/analytics-types";
 import type { PriceAlertView } from "@/lib/price-alert-types";
 import type { EarnData, StakeView } from "@/lib/earn-types";
-import type { PayoutConfig, PayoutQuote, FiatPayoutView } from "@/lib/ramp/types";
+import type {
+  PayoutConfig,
+  PayoutQuote,
+  FiatPayoutView,
+  ResolvedAccount,
+} from "@/lib/ramp/types";
 import type {
   CustodyConfig,
   DepositAddressInfo,
@@ -275,6 +280,12 @@ export const api = {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(input),
     }).then((r) => mutate<PayoutQuote>(r, "Could not price this payout")),
+
+  payoutResolve: (bankCode: string, accountNumber: string) =>
+    fetch(
+      `/api/ramp/payout/resolve?bankCode=${encodeURIComponent(bankCode)}&accountNumber=${encodeURIComponent(accountNumber)}`,
+      { cache: "no-store" },
+    ).then((r) => mutate<ResolvedAccount>(r, "Could not verify that account")),
 
   payoutControls: () =>
     fetch("/api/ramp/payout/execute", { cache: "no-store" }).then((r) =>

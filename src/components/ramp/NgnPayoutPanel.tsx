@@ -4,7 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Search, AlertCircle, Landmark, CheckCircle2 } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
-import type { PayoutBank, PayoutConfig, PayoutQuote, FiatPayoutView } from "@/lib/ramp/types";
+import type {
+  PayoutBank,
+  PayoutConfig,
+  PayoutQuote,
+  FiatPayoutView,
+  ResolvedAccount,
+} from "@/lib/ramp/types";
 
 type Mode = "fiat" | "crypto";
 
@@ -37,6 +43,12 @@ export function NgnPayoutPanel() {
   const [quote, setQuote] = useState<PayoutQuote | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Keyed by bank+account so a stale result invalidates by derivation. Clearing
+  // it with a setState in an effect body is what React 19's purity rule rejects.
+  const [resolved, setResolved] = useState<{ key: string; value: ResolvedAccount } | null>(null);
+  const [resolving, setResolving] = useState(false);
+  const [resolveError, setResolveError] = useState<{ key: string; message: string } | null>(null);
 
   const [needs2FA, setNeeds2FA] = useState(false);
   const [code, setCode] = useState("");
@@ -87,6 +99,27 @@ export function NgnPayoutPanel() {
     const list = q ? config.banks.filter((b) => b.name.toLowerCase().includes(q)) : config.banks;
     return list.slice(0, 50); // 358 banks — cap the DOM, search narrows it
   }, [config, bankQuery]);
+
+  // Identity of the account currently entered. Results carrying a different key
+  // are stale and simply don't render.
+  const accountKey = bank && accountValid ? `${bank.code}:${account}` : "";
+  const holder = resolved?.key === accountKey ? resolved.value : null;
+  const holderError = resolveError?.key === accountKey ? resolveError.message : null;
+
+  useEffect(() => {
+    if (!accountKey) return;
+    const [bankCode, accountNumber] = accountKey.split(":");
+    // setState lives in the timeout callback, never in the effect body.
+    const t = setTimeout(() => {
+      setResolving(true);
+      api
+        .payoutResolve(bankCode, accountNumber)
+        .then((r) => setResolved({ key: accountKey, value: r }))
+        .catch((e: Error) => setResolveError({ key: accountKey, message: e.message }))
+        .finally(() => setResolving(false));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [accountKey]);
 
   const reqId = useRef(0);
   const fetchQuote = useCallback(async () => {
@@ -163,7 +196,10 @@ export function NgnPayoutPanel() {
           <h2 className="text-lg font-semibold">Payout submitted</h2>
         </div>
         <p className="text-sm text-[var(--color-foreground)]">
-          {fmt(done.fiatAmount)} {done.fiatCode} to {done.bankName} {done.accountNumber}
+          {fmt(done.fiatAmount)} {done.fiatCode} to {done.accountName ?? "your account"}
+        </p>
+        <p className="text-sm text-[var(--color-muted)]">
+          {done.bankName} {done.accountNumber}
         </p>
         <p className="text-sm text-[var(--color-muted)]">
           {fmt(done.fromAmount, 6)} {done.fromSymbol} is reserved and will be released once your
@@ -185,6 +221,9 @@ export function NgnPayoutPanel() {
     !expired &&
     accountValid &&
     bank !== null &&
+    // An unresolved account would be rejected downstream anyway, and only after
+    // the funds had been locked. Better to stop here.
+    holder !== null &&
     !loading &&
     !submitting &&
     (!needs2FA || code.length === 6);
@@ -314,6 +353,26 @@ export function NgnPayoutPanel() {
           <p className="text-xs text-[var(--color-down)]">
             Nigerian account numbers are exactly 10 digits.
           </p>
+        )}
+
+        {/* Confirming the holder before sending is the norm for Nigerian
+            transfers, and the only practical guard against a mistyped digit
+            sending money to a stranger. */}
+        {accountKey && resolving && !holder && !holderError && (
+          <p className="flex items-center gap-2 text-xs text-[var(--color-muted)]">
+            <Loader2 className="h-3 w-3 animate-spin" /> Checking account…
+          </p>
+        )}
+        {holder && (
+          <div className="rounded-lg bg-[var(--color-up-bg)] px-3 py-2">
+            <p className="text-sm font-semibold text-[var(--color-up)]">{holder.accountName}</p>
+            <p className="text-xs text-[var(--color-muted)]">
+              Confirm this is the right person before withdrawing.
+            </p>
+          </div>
+        )}
+        {holderError && (
+          <p className="text-xs text-[var(--color-down)]">{holderError}</p>
         )}
       </div>
 

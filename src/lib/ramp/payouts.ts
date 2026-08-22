@@ -9,6 +9,7 @@ import {
   executePayout,
   getPayoutConfig,
   fetchPayoutStatus,
+  lookupAccount,
   PayoutStepError,
 } from "./bitnob-payout";
 import { livePayoutsEnabled, bitnobConfigured } from "@/lib/bitnob";
@@ -43,6 +44,7 @@ function toView(p: PayoutRow): FiatPayoutView {
     feeFiat: Number(p.feeFiat),
     bankName: p.bankName,
     accountNumber: maskAccount(p.accountNumber),
+    accountName: p.accountName,
     error: p.error,
     createdAt: p.createdAt.getTime(),
   };
@@ -106,6 +108,12 @@ export async function requestPayout(
     throw new Error("That account number isn't valid for this country.");
   }
 
+  // Resolve the holder server-side rather than accepting a name from the client.
+  // This is also the last cheap chance to catch a mistyped account number: an
+  // unresolvable account would fail at the provider anyway, but only after the
+  // funds had been locked.
+  const resolved = await lookupAccount(bank.code, input.accountNumber);
+
   // Authoritative re-read. The client sends only an id, so it cannot inflate the
   // amount, change the asset, or replay a stale price.
   const quote = await fetchQuote(input.payoutId);
@@ -145,6 +153,7 @@ export async function requestPayout(
           bankCode: bank.code,
           bankName: bank.name,
           accountNumber: input.accountNumber,
+          accountName: resolved.accountName,
           status: "REQUESTED",
         },
       });

@@ -589,6 +589,8 @@ model FiatPayout {
   bankCode         String
   bankName         String
   accountNumber    String
+  /// Holder name as resolved by the provider, not as typed by the user.
+  accountName      String?
   status           FiatPayoutStatus @default(REQUESTED)
   /// Raw status last reported by the provider, kept verbatim so an
   /// unrecognised value can be inspected instead of guessed at.

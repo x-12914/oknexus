@@ -55,6 +55,15 @@ export interface FiatPayoutView {
   bankName: string;
   /** Masked — the full number is never sent back to the client. */
   accountNumber: string;
+  accountName: string | null;
   error: string | null;
   createdAt: number;
+}
+
+/** Result of resolving a bank account to its registered holder. */
+export interface ResolvedAccount {
+  accountName: string;
+  accountNumber: string;
+  bankCode: string;
+  verified: boolean;
 }

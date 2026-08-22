@@ -1,6 +1,6 @@
 import "server-only";
 import { bitnobRequest, bitnobConfigured, initializePayout, finalizePayout } from "@/lib/bitnob";
-import type { PayoutBank, PayoutConfig, PayoutQuote } from "./types";
+import type { PayoutBank, PayoutConfig, PayoutQuote, ResolvedAccount } from "./types";
 
 /**
  * NGN off-ramp over Bitnob payouts.
@@ -199,6 +199,44 @@ export async function fetchPayoutStatus(payoutId: string): Promise<string> {
   const status = res.data?.data?.payout?.status;
   if (!status) throw new Error("Provider returned no status");
   return String(status);
+}
+
+interface RawLookup {
+  data?: {
+    account_name?: string;
+    account_number?: string;
+    bank_code?: string;
+    is_verified?: boolean;
+  };
+}
+
+/**
+ * Resolve a bank account to its registered holder.
+ *
+ * The provider is fussy about this one: only the exact query set
+ * country + destination_type + bank_code + account_number is accepted —
+ * dropping country, or using camelCase keys, returns "Validation failed".
+ */
+export async function lookupAccount(
+  bankCode: string,
+  accountNumber: string,
+): Promise<ResolvedAccount> {
+  const qs = new URLSearchParams({
+    country: COUNTRY,
+    destination_type: "bank",
+    bank_code: bankCode,
+    account_number: accountNumber,
+  });
+  const res = await bitnobRequest<RawLookup>("GET", `/api/payouts/account-lookup?${qs.toString()}`);
+  if (!res.ok) throw new Error(res.error ?? "Could not verify that account.");
+  const d = res.data?.data;
+  if (!d?.account_name) throw new Error("Could not verify that account.");
+  return {
+    accountName: d.account_name,
+    accountNumber: d.account_number ?? accountNumber,
+    bankCode: d.bank_code ?? bankCode,
+    verified: Boolean(d.is_verified),
+  };
 }
 
 /** Which leg of the two-step commit failed — decides refund vs. reconcile. */
