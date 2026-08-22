@@ -119,8 +119,18 @@ export async function bitnobRequest<T = unknown>(
   }
   let error: string | null = null;
   if (!res.ok) {
-    const envelope = data as { message?: string; error?: string } | null;
-    error = envelope?.message ?? envelope?.error ?? raw?.slice(0, 200) ?? `HTTP ${res.status}`;
+    // Two envelope shapes are in play: the newer RFC-7807-ish one keyed on
+    // `detail`, and an older `{success:false, error:{message}}`. Missing
+    // `detail` meant the whole JSON blob was surfacing as the user's error text.
+    const envelope = data as {
+      detail?: string;
+      message?: string;
+      error?: string | { message?: string };
+    } | null;
+    const nested =
+      typeof envelope?.error === "object" ? envelope?.error?.message : envelope?.error;
+    error =
+      envelope?.detail ?? envelope?.message ?? nested ?? raw?.slice(0, 200) ?? `HTTP ${res.status}`;
   }
   return { status: res.status, ok: res.ok, data, error };
 }
