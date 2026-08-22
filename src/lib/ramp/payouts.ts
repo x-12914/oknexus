@@ -4,8 +4,14 @@ import { prisma } from "@/lib/db";
 import { withLedger, lock, unlock, settleLocked, quantize } from "@/lib/ledger";
 import { notify } from "@/lib/notifications";
 import { assertWithinDailyLimit } from "@/lib/custody/withdrawals";
-import { fetchQuote, executePayout, getPayoutConfig, PayoutStepError } from "./bitnob-payout";
-import { livePayoutsEnabled } from "@/lib/bitnob";
+import {
+  fetchQuote,
+  executePayout,
+  getPayoutConfig,
+  fetchPayoutStatus,
+  PayoutStepError,
+} from "./bitnob-payout";
+import { livePayoutsEnabled, bitnobConfigured } from "@/lib/bitnob";
 import type { FiatPayoutView } from "./types";
 
 export type { FiatPayoutView };
@@ -178,27 +184,157 @@ export async function requestPayout(
     );
   }
 
-  // Accepted: the locked funds have now genuinely left the account.
-  const settled = await withLedger(async (tx) => {
-    await settleLocked(tx, userId, quote.fromSymbol, amount, {
-      type: LedgerType.RAMP,
-      refId: row.id,
-      memo: `Payout ${quote.fiatCode} to ${bank.name}`,
-    });
-    return tx.fiatPayout.update({
-      where: { id: row.id },
-      data: { status: "COMPLETED" },
-    });
-  });
-
+  // Accepted by the provider — but accepted is not arrived. A payout can still
+  // fail downstream at the bank, so the funds stay LOCKED and the row stays
+  // PROCESSING until reconcilePayouts sees a terminal status. Settling here
+  // would leave no way to refund a payout that never actually landed.
   await notify(userId, {
     type: "WITHDRAWAL",
-    title: "Payout sent",
-    body: `${quote.fiatAmount.toLocaleString()} ${quote.fiatCode} is on its way to ${bank.name} ${maskAccount(input.accountNumber)}.`,
+    title: "Payout submitted",
+    body: `${quote.fiatAmount.toLocaleString()} ${quote.fiatCode} to ${bank.name} ${maskAccount(input.accountNumber)} is being processed.`,
     href: "/withdraw",
   });
 
-  return toView(settled);
+  const submitted = await prisma.fiatPayout.findUniqueOrThrow({ where: { id: row.id } });
+  return toView(submitted);
+}
+
+/**
+ * Provider status vocabulary.
+ *
+ * Only statuses in these sets are acted on. Anything unrecognised is recorded
+ * and otherwise left completely alone, because guessing wrong in either
+ * direction is expensive: treat a live payout as failed and we refund money
+ * that already went out; treat a failed one as settled and the user silently
+ * loses their balance. The real strings land after the first live payout.
+ */
+const TERMINAL_SUCCESS = new Set([
+  "SUCCESS",
+  "SUCCESSFUL",
+  "COMPLETED",
+  "COMPLETE",
+  "PAID",
+  "SETTLED",
+]);
+const TERMINAL_FAILURE = new Set([
+  "FAILED",
+  "FAILURE",
+  "EXPIRED",
+  "REJECTED",
+  "CANCELLED",
+  "CANCELED",
+  "REVERSED",
+  "REFUNDED",
+]);
+const IN_FLIGHT = new Set([
+  "QUOTE",
+  "INITIATED",
+  "INITIALIZED",
+  "PENDING",
+  "PROCESSING",
+  "QUEUED",
+]);
+
+export interface ReconcileResult {
+  checked: number;
+  completed: number;
+  failed: number;
+  /** Unrecognised provider statuses, surfaced so the map can be tightened. */
+  unknown: string[];
+}
+
+/**
+ * Poll in-flight payouts and drive them to a terminal state.
+ *
+ * This is the only place a payout is settled or refunded after hand-off. It is
+ * idempotent — each transition is claimed with a guarded update inside the same
+ * transaction as the ledger move — so running it alongside a webhook, or twice
+ * concurrently, cannot double-settle or double-refund.
+ */
+export async function reconcilePayouts(take = 25): Promise<ReconcileResult> {
+  const result: ReconcileResult = { checked: 0, completed: 0, failed: 0, unknown: [] };
+  if (!bitnobConfigured()) return result;
+
+  const rows = await prisma.fiatPayout.findMany({
+    where: { status: "PROCESSING", providerPayoutId: { not: null } },
+    orderBy: { createdAt: "asc" },
+    take,
+  });
+
+  for (const row of rows) {
+    const providerId = row.providerPayoutId;
+    if (!providerId) continue;
+    result.checked++;
+
+    let status: string;
+    try {
+      status = await fetchPayoutStatus(providerId);
+    } catch {
+      // Transient provider/network failure. Never act on no information —
+      // the next pass retries.
+      continue;
+    }
+
+    const norm = status.trim().toUpperCase();
+    const amount = Number(row.fromAmount);
+    const ref = {
+      type: LedgerType.RAMP,
+      refId: row.id,
+      memo: `Payout ${row.fiatCode} to ${row.bankName}`,
+    };
+
+    if (TERMINAL_SUCCESS.has(norm)) {
+      const moved = await withLedger(async (tx) => {
+        const claim = await tx.fiatPayout.updateMany({
+          where: { id: row.id, status: "PROCESSING" },
+          data: { status: "COMPLETED", providerStatus: status },
+        });
+        if (claim.count === 0) return false; // another pass already handled it
+        await settleLocked(tx, row.userId, row.fromSymbol, amount, ref);
+        return true;
+      });
+      if (moved) {
+        result.completed++;
+        await notify(row.userId, {
+          type: "WITHDRAWAL",
+          title: "Payout completed",
+          body: `${Number(row.fiatAmount).toLocaleString()} ${row.fiatCode} has arrived at ${row.bankName} ${maskAccount(row.accountNumber)}.`,
+          href: "/withdraw",
+        });
+      }
+    } else if (TERMINAL_FAILURE.has(norm)) {
+      const moved = await withLedger(async (tx) => {
+        const claim = await tx.fiatPayout.updateMany({
+          where: { id: row.id, status: "PROCESSING" },
+          data: { status: "FAILED", providerStatus: status, error: `Provider reported ${status}` },
+        });
+        if (claim.count === 0) return false;
+        // Never settled, so the reserved funds simply go back.
+        await unlock(tx, row.userId, row.fromSymbol, amount, {
+          ...ref,
+          memo: "Payout failed — refunded",
+        });
+        return true;
+      });
+      if (moved) {
+        result.failed++;
+        await notify(row.userId, {
+          type: "WITHDRAWAL",
+          title: "Payout failed",
+          body: `Your ${row.fiatCode} payout could not be completed. ${amount} ${row.fromSymbol} is back in your balance.`,
+          href: "/withdraw",
+        });
+      }
+    } else {
+      await prisma.fiatPayout.update({
+        where: { id: row.id },
+        data: { providerStatus: status },
+      });
+      if (!IN_FLIGHT.has(norm)) result.unknown.push(status);
+    }
+  }
+
+  return result;
 }
 
 export async function listPayouts(userId: string, take = 20): Promise<FiatPayoutView[]> {

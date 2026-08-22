@@ -590,6 +590,9 @@ model FiatPayout {
   bankName         String
   accountNumber    String
   status           FiatPayoutStatus @default(REQUESTED)
+  /// Raw status last reported by the provider, kept verbatim so an
+  /// unrecognised value can be inspected instead of guessed at.
+  providerStatus   String?
   error            String?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt

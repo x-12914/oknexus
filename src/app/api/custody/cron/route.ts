@@ -6,6 +6,7 @@ import { processWithdrawals } from "@/lib/custody/withdrawals";
 import { processStopTriggers } from "@/lib/orders";
 import { processPriceAlerts } from "@/lib/price-alerts";
 import { accrueStakes } from "@/lib/earn";
+import { reconcilePayouts } from "@/lib/ramp/payouts";
 import { turnkeyConfigured } from "@/lib/turnkey";
 
 // Driven by a system cron on the VPS (every ~minute) with a bearer secret.
@@ -20,11 +21,14 @@ export async function POST(req: NextRequest) {
   const stops = await processStopTriggers().catch((e) => ({ error: (e as Error).message }));
   const alerts = await processPriceAlerts().catch((e) => ({ error: (e as Error).message }));
   const staking = await accrueStakes().catch((e) => ({ error: (e as Error).message }));
+  // Drives in-flight fiat payouts to a terminal state. Runs here rather than
+  // under the custody gate below: it needs the payout provider, not a chain.
+  const payouts = await reconcilePayouts().catch((e) => ({ error: (e as Error).message }));
 
   // Deposit scanning works under either custody backend Turnkey (addresses only)
   // or the HD seed. Only skip when neither is configured.
   if (!turnkeyConfigured() && !process.env.CUSTODY_MNEMONIC) {
-    return Response.json({ ok: true, stops, alerts, staking, reason: "custody not configured" });
+    return Response.json({ ok: true, stops, alerts, staking, payouts, reason: "custody not configured" });
   }
 
   const chains: Record<string, unknown> = {};
@@ -38,5 +42,5 @@ export async function POST(req: NextRequest) {
       chains[chain] = { error: (e as Error).message };
     }
   }
-  return Response.json({ ok: true, stops, alerts, staking, chains });
+  return Response.json({ ok: true, stops, alerts, staking, payouts, chains });
 }

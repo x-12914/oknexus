@@ -186,6 +186,21 @@ export async function fetchQuote(payoutId: string): Promise<FetchedQuote> {
   return { ...normalizeQuote(p), providerStatus: String(p.status ?? "") };
 }
 
+/**
+ * The provider's current status string for a payout, verbatim.
+ *
+ * Deliberately not mapped here: the reconciler owns the interpretation, and
+ * keeping the raw value means an unexpected string is visible rather than
+ * silently coerced into "succeeded" or "failed".
+ */
+export async function fetchPayoutStatus(payoutId: string): Promise<string> {
+  const res = await bitnobRequest<RawQuote>("GET", `/api/payouts/${encodeURIComponent(payoutId)}`);
+  if (!res.ok) throw new Error(res.error ?? "Could not read payout status");
+  const status = res.data?.data?.payout?.status;
+  if (!status) throw new Error("Provider returned no status");
+  return String(status);
+}
+
 /** Which leg of the two-step commit failed — decides refund vs. reconcile. */
 export class PayoutStepError extends Error {
   constructor(

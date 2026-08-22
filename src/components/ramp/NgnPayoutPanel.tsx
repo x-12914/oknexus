@@ -160,13 +160,14 @@ export function NgnPayoutPanel() {
       <div className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
         <div className="flex items-center gap-2 text-[var(--color-up)]">
           <CheckCircle2 className="h-5 w-5" />
-          <h2 className="text-lg font-semibold">Payout sent</h2>
+          <h2 className="text-lg font-semibold">Payout submitted</h2>
         </div>
         <p className="text-sm text-[var(--color-foreground)]">
           {fmt(done.fiatAmount)} {done.fiatCode} to {done.bankName} {done.accountNumber}
         </p>
         <p className="text-sm text-[var(--color-muted)]">
-          {fmt(done.fromAmount, 6)} {done.fromSymbol} debited from your balance.
+          {fmt(done.fromAmount, 6)} {done.fromSymbol} is reserved and will be released once your
+          bank confirms. If it does not go through, it returns to your balance automatically.
         </p>
         <button
           type="button"
