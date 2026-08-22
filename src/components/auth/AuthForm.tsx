@@ -6,13 +6,42 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, Eye, EyeOff, Mail } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
+import { SocialButtons, type SocialProviderButton } from "@/components/auth/SocialButtons";
 import { cn } from "@/lib/utils";
 
 const AFTER_AUTH = "/dashboard";
 
 type Step = "form" | "verify-otp";
 
-export function AuthForm({ mode }: { mode: "login" | "register" }) {
+/** Turn an Auth.js `?error=` code into something a person can act on. */
+function describeAuthError(code: string): string {
+  switch (code) {
+    case "SocialNoEmail":
+      return "That provider didn't share an email address, so we can't match or create an account. Sign in with your email instead.";
+    case "SocialEmailUnverified":
+      return "That provider hasn't verified the email on your account. Verify it there, or sign in with your email and password.";
+    case "AccountSuspended":
+      return "This account has been suspended. Contact support if you think that's a mistake.";
+    case "OAuthAccountNotLinked":
+      return "An OKNexus account already uses that email address. Sign in with your password first, then link the provider from Settings → Security.";
+    case "AccessDenied":
+      return "That sign-in was declined. Please try again or use your email and password.";
+    case "Configuration":
+      return "That sign-in method isn't available right now. Please use your email and password.";
+    default:
+      return "We couldn't complete that sign-in. Please try again.";
+  }
+}
+
+export function AuthForm({
+  mode,
+  socialProviders = [],
+  errorCode,
+}: {
+  mode: "login" | "register";
+  socialProviders?: SocialProviderButton[];
+  errorCode?: string;
+}) {
   const router = useRouter();
   const isLogin = mode === "login";
 
@@ -24,7 +53,9 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [otpCode, setOtpCode] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    errorCode ? describeAuthError(errorCode) : null,
+  );
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [code, setCode] = useState(""); // for 2FA
@@ -256,6 +287,8 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             ? "Sign in to your OKNexus account."
             : "Start trading on OKNexus in seconds."}
         </p>
+
+        <SocialButtons providers={socialProviders} redirectTo={AFTER_AUTH} className="mt-5" />
 
         <form onSubmit={isLogin ? submitLogin : submitRegister} className="mt-5 space-y-3">
           {!isLogin ? (

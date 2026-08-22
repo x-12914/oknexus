@@ -2,26 +2,39 @@ import { redirect } from "next/navigation";
 import { sessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { describeDevice } from "@/lib/login-history";
+import { enabledSocialProviders, socialProviderLabel } from "@/lib/social-auth";
 import { TwoFactorCard } from "@/components/security/TwoFactorCard";
 import { LoginHistory } from "@/components/security/LoginHistory";
 import { SignOutAllCard } from "@/components/security/SignOutAllCard";
 import { PasswordManagementCard } from "@/components/security/PasswordManagementCard";
+import { ConnectedAccountsCard } from "@/components/security/ConnectedAccountsCard";
 
 export default async function SecurityPage() {
   const u = await sessionUser();
   if (!u) redirect("/login");
 
-  const [user, events] = await Promise.all([
+  const [user, events, accounts] = await Promise.all([
     prisma.user.findUnique({
       where: { id: u.id },
-      select: { twoFAEnabled: true },
+      select: { twoFAEnabled: true, passwordHash: true },
     }),
     prisma.loginEvent.findMany({
       where: { userId: u.id },
       orderBy: { createdAt: "desc" },
       take: 10,
     }),
+    prisma.account.findMany({
+      where: { userId: u.id },
+      select: { provider: true },
+      distinct: ["provider"],
+    }),
   ]);
+
+  const connected = accounts.map((a) => ({ id: a.provider, label: socialProviderLabel(a.provider) }));
+  const linked = new Set(connected.map((a) => a.id));
+  const available = enabledSocialProviders()
+    .filter((p) => !linked.has(p.id))
+    .map((p) => ({ id: p.id, label: p.label }));
 
   return (
     <div className="h-full p-6 lg:p-10">
@@ -33,7 +46,12 @@ export default async function SecurityPage() {
         <div className="mt-8 space-y-6">
           <PasswordManagementCard />
           <TwoFactorCard initialEnabled={!!user?.twoFAEnabled} />
-          
+          <ConnectedAccountsCard
+            connected={connected}
+            available={available}
+            hasPassword={Boolean(user?.passwordHash)}
+          />
+
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/40 p-5">
             <h3 className="font-medium text-[var(--color-foreground)]">Withdrawal Whitelist</h3>
             <p className="mt-1 text-xs text-[var(--color-muted)]">Restrict withdrawals to verified addresses only.</p>
