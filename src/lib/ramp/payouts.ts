@@ -55,6 +55,29 @@ export interface RequestPayoutInput {
   accountNumber: string;
 }
 
+/**
+ * Optional per-user restriction on who may move real money.
+ *
+ * This exists because new accounts are seeded with 10,000 demo USDT. Enabling
+ * live payouts without a restriction would let anyone who registers convert
+ * that demo balance into real naira until the provider float is drained.
+ *
+ * Set BITNOB_PAYOUT_ALLOWLIST to a comma-separated list of emails while
+ * testing. Unset means no per-user restriction — only safe once the demo seed
+ * is gone.
+ */
+export function payoutAllowedFor(email: string | null | undefined): boolean {
+  const raw = process.env.BITNOB_PAYOUT_ALLOWLIST?.trim();
+  if (!raw) return true;
+  const allowed = new Set(
+    raw
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+  );
+  return Boolean(email && allowed.has(email.toLowerCase()));
+}
+
 export async function requestPayout(
   userId: string,
   input: RequestPayoutInput,
@@ -64,6 +87,15 @@ export async function requestPayout(
   // strand the funds LOCKED for a rejection that committed nothing.
   if (!livePayoutsEnabled()) {
     throw new Error("Payouts are currently disabled.");
+  }
+
+  // Enforced here rather than only in the route, so every caller is covered.
+  const actor = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  if (!payoutAllowedFor(actor?.email)) {
+    throw new Error("Payouts aren't enabled for this account yet.");
   }
 
   const config = await getPayoutConfig();
