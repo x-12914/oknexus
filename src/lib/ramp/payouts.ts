@@ -146,7 +146,9 @@ export async function requestPayout(
       // is checkable-then-beatable: two concurrent requests both read usage as
       // zero, both pass, and both lock. Being merely "inside a transaction" does
       // not help under READ COMMITTED — the lock is what orders them.
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${userId})::bigint)`;
+      // $executeRaw, not $queryRaw: the function returns void and Prisma cannot
+      // deserialize a void column, which made every call throw.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId})::bigint)`;
 
       // Checked here rather than in the route: the payable amount is only known
       // once the quote has been re-read, and a client-supplied figure must never

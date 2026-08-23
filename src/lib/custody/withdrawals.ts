@@ -128,7 +128,9 @@ export async function requestWithdrawal(
     // Serialize per user, then check the cap inside the same transaction. The
     // route used to assert the limit beforehand, which two concurrent requests
     // could both satisfy before either had locked anything.
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${userId})::bigint)`;
+    // $executeRaw, not $queryRaw: the function returns void and Prisma cannot
+    // deserialize a void column, which made every call throw.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId})::bigint)`;
     await assertWithinDailyLimit(userId, symbol, amount, tx);
 
     const w = await tx.withdrawal.create({
