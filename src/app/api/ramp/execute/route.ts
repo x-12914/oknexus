@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { getExchange } from "@/lib/exchange";
+import { simulatedRampEnabled } from "@/lib/ramp/flags";
 import { sessionUserId } from "@/lib/auth";
 import { settleRamp } from "@/lib/settlement";
 
@@ -9,6 +10,12 @@ const ExecuteSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  if (!simulatedRampEnabled()) {
+    return Response.json(
+      { error: "Buying and selling with fiat isn't available yet." },
+      { status: 503 },
+    );
+  }
   const userId = await sessionUserId();
   if (!userId) return Response.json({ error: "Please sign in to continue." }, { status: 401 });
 

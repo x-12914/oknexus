@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { getExchange } from "@/lib/exchange";
+import { simulatedRampEnabled } from "@/lib/ramp/flags";
 
 const QuoteSchema = z.object({
   side: z.enum(["BUY", "SELL"]),
@@ -11,6 +12,12 @@ const QuoteSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  if (!simulatedRampEnabled()) {
+    return Response.json(
+      { error: "Buying and selling with fiat isn't available yet." },
+      { status: 503 },
+    );
+  }
   const parsed = QuoteSchema.safeParse(await req.json());
   if (!parsed.success) {
     return Response.json(
