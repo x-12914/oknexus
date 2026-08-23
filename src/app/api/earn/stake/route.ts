@@ -1,10 +1,14 @@
 import { z } from "zod";
 import { sessionUserId } from "@/lib/auth";
 import { stake, EarnError } from "@/lib/earn";
+import { earnEnabled } from "@/lib/ramp/flags";
 
 const Schema = z.object({ symbol: z.string().min(1).max(12), amount: z.number().positive().finite() });
 
 export async function POST(req: Request) {
+  if (!earnEnabled()) {
+    return Response.json({ error: "Earn isn't available right now." }, { status: 503 });
+  }
   const userId = await sessionUserId();
   if (!userId) return Response.json({ error: "Please sign in." }, { status: 401 });
 

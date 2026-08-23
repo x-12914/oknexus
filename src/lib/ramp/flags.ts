@@ -12,3 +12,18 @@
 export function simulatedRampEnabled(): boolean {
   return process.env.ENABLE_SIMULATED_RAMP === "true";
 }
+
+/**
+ * Staking rewards.
+ *
+ * `unstake` credits accrued yield with no counter-movement — the reward is
+ * minted, not funded. Realised amounts have been tiny, but with a live
+ * withdrawal rail it is still value created from nothing, so new stakes are
+ * off until the yield is paid from a real treasury.
+ *
+ * Note this gates ENTERING only. Unstaking always works: a user must be able to
+ * get their principal back regardless of how the flag is set.
+ */
+export function earnEnabled(): boolean {
+  return process.env.ENABLE_EARN === "true";
+}
