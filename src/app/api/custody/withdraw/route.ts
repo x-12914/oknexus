@@ -5,7 +5,6 @@ import { prisma } from "@/lib/db";
 import { DEFAULT_CHAIN } from "@/lib/custody/registry";
 import {
   requestWithdrawal,
-  assertWithinDailyLimit,
   dailyLimitStatus,
   DailyLimitError,
 } from "@/lib/custody/withdrawals";
@@ -69,7 +68,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await assertWithinDailyLimit(userId, parsed.data.symbol, parsed.data.amount);
+    // The cap is asserted inside requestWithdrawal's transaction, under a
+    // per-user lock — checking it out here as well would just be a racy no-op.
     const w = await requestWithdrawal(
       userId,
       parsed.data.chain || DEFAULT_CHAIN,

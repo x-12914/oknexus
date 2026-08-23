@@ -27,3 +27,14 @@ export function simulatedRampEnabled(): boolean {
 export function earnEnabled(): boolean {
   return process.env.ENABLE_EARN === "true";
 }
+
+/**
+ * Whether a verified identity is required before fiat can leave the platform.
+ *
+ * Defaults to ON: unset means required. A money control should fail toward the
+ * restrictive setting, so a cleared or mistyped variable stops payouts rather
+ * than silently opening them.
+ */
+export function payoutRequiresKyc(): boolean {
+  return process.env.PAYOUT_REQUIRE_KYC !== "false";
+}

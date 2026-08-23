@@ -13,6 +13,7 @@ import {
   PayoutStepError,
 } from "./bitnob-payout";
 import { livePayoutsEnabled, bitnobConfigured, getCompanyBalances } from "@/lib/bitnob";
+import { payoutRequiresKyc } from "./flags";
 import type { FiatPayoutView } from "./types";
 
 export type { FiatPayoutView };
@@ -58,19 +59,20 @@ export interface RequestPayoutInput {
 }
 
 /**
- * Optional per-user restriction on who may move real money.
+ * Which accounts may move real money.
  *
- * This exists because new accounts are seeded with 10,000 demo USDT. Enabling
- * live payouts without a restriction would let anyone who registers convert
- * that demo balance into real naira until the provider float is drained.
+ * Set BITNOB_PAYOUT_ALLOWLIST to a comma-separated list of emails, or to "*"
+ * to allow everyone once launch is genuinely intended.
  *
- * Set BITNOB_PAYOUT_ALLOWLIST to a comma-separated list of emails while
- * testing. Unset means no per-user restriction — only safe once the demo seed
- * is gone.
+ * Unset or empty means NOBODY. This previously meant "everybody", which is the
+ * wrong direction for a money control: clearing the variable during a config
+ * edit would have silently opened payouts rather than closing them. Opening
+ * them should take an explicit "*".
  */
 export function payoutAllowedFor(email: string | null | undefined): boolean {
   const raw = process.env.BITNOB_PAYOUT_ALLOWLIST?.trim();
-  if (!raw) return true;
+  if (!raw) return false;
+  if (raw === "*") return true;
   const allowed = new Set(
     raw
       .split(",")
@@ -94,10 +96,17 @@ export async function requestPayout(
   // Enforced here rather than only in the route, so every caller is covered.
   const actor = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true },
+    select: { email: true, kycStatus: true },
   });
   if (!payoutAllowedFor(actor?.email)) {
     throw new Error("Payouts aren't enabled for this account yet.");
+  }
+
+  // Sending fiat to a bank account without a verified identity is an AML
+  // problem, not just a product gap. Nothing else in the app checked kycStatus,
+  // so the whole verification flow gated nothing until this.
+  if (payoutRequiresKyc() && actor?.kycStatus !== "APPROVED") {
+    throw new Error("Verify your identity before withdrawing to a bank account.");
   }
 
   const config = await getPayoutConfig();
@@ -127,17 +136,23 @@ export async function requestPayout(
   const amount = quantize(quote.fromAmount);
   if (!(amount > 0)) throw new Error("That quote has no payable amount.");
 
-  // Enforced here rather than in the route: the payable amount is only known
-  // once the quote has been re-read, and a client-supplied figure must never
-  // be what the cap is checked against.
-  await assertWithinDailyLimit(userId, quote.fromSymbol, amount);
-
   // Create + lock atomically. The unique constraint on providerPayoutId is what
   // actually stops a double-submitted quote: the second insert fails and rolls
   // back its lock, rather than reserving the funds twice.
   let row: PayoutRow;
   try {
     row = await withLedger(async (tx) => {
+      // Serialize per user for the rest of this transaction. Without it the cap
+      // is checkable-then-beatable: two concurrent requests both read usage as
+      // zero, both pass, and both lock. Being merely "inside a transaction" does
+      // not help under READ COMMITTED — the lock is what orders them.
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${userId})::bigint)`;
+
+      // Checked here rather than in the route: the payable amount is only known
+      // once the quote has been re-read, and a client-supplied figure must never
+      // be what the cap is measured against.
+      await assertWithinDailyLimit(userId, quote.fromSymbol, amount, tx);
+
       const created = await tx.fiatPayout.create({
         data: {
           userId,

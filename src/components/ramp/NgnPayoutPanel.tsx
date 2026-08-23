@@ -51,6 +51,7 @@ export function NgnPayoutPanel() {
   const [resolveError, setResolveError] = useState<{ key: string; message: string } | null>(null);
 
   const [needs2FA, setNeeds2FA] = useState(false);
+  const [kycBlocked, setKycBlocked] = useState(false);
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState<FiatPayoutView | null>(null);
@@ -81,7 +82,10 @@ export function NgnPayoutPanel() {
     // Whether this account needs an authenticator code to release funds.
     api
       .payoutControls()
-      .then((r) => setNeeds2FA(r.needs2FA))
+      .then((r) => {
+        setNeeds2FA(r.needs2FA);
+        setKycBlocked(r.kycRequired && !r.kycApproved);
+      })
       .catch(() => {});
   }, []);
 
@@ -217,6 +221,7 @@ export function NgnPayoutPanel() {
   }
 
   const canSubmit =
+    !kycBlocked &&
     Boolean(quote) &&
     !expired &&
     accountValid &&
@@ -238,6 +243,24 @@ export function NgnPayoutPanel() {
           Sell {fromSymbol} and receive {config.fiatCode} directly in your bank account.
         </p>
       </div>
+
+      {kycBlocked && (
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4">
+          <p className="text-sm font-medium text-[var(--color-foreground)]">
+            Verify your identity first
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-[var(--color-muted)]">
+            Nigerian rules require a verified identity before we can send money to a bank account.
+            It takes a few minutes.
+          </p>
+          <a
+            href="/kyc"
+            className="mt-3 inline-block text-sm font-medium text-[var(--color-accent)] hover:underline"
+          >
+            Verify now
+          </a>
+        </div>
+      )}
 
       <div className="flex gap-2">
         {config.fromSymbols.map((s) => (

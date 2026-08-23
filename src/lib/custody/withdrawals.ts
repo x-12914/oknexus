@@ -24,7 +24,14 @@ export function withdrawFee(symbol: string): number {
 export class DailyLimitError extends Error {}
 
 // Rolling-24h withdrawal cap in USD (0 / unset = no limit).
-const DAILY_LIMIT_USD = Number(process.env.WITHDRAW_DAILY_USD_LIMIT ?? 50000);
+/**
+ * Rolling-24h withdrawal cap in USD.
+ *
+ * The old 50,000 default was written when this was a simulated demo and nothing
+ * left the building. It now governs a real payout rail, so the default is
+ * deliberately conservative — raise it explicitly, ideally per KYC tier.
+ */
+const DAILY_LIMIT_USD = Number(process.env.WITHDRAW_DAILY_USD_LIMIT ?? 2000);
 
 export interface DailyLimitStatus {
   limitUsd: number;
@@ -46,14 +53,19 @@ async function usdPriceMap(): Promise<Map<string, number>> {
  * the same balances, so leaving payouts out would make the cap trivially
  * bypassable by cashing out to a bank instead of an address.
  */
-export async function dailyLimitStatus(userId: string): Promise<DailyLimitStatus> {
+type Db = Pick<typeof prisma, "withdrawal" | "fiatPayout">;
+
+export async function dailyLimitStatus(
+  userId: string,
+  db: Db = prisma,
+): Promise<DailyLimitStatus> {
   const since = new Date(Date.now() - 24 * 3600 * 1000);
   const [rows, payouts, prices] = await Promise.all([
-    prisma.withdrawal.findMany({
+    db.withdrawal.findMany({
       where: { userId, status: { not: "FAILED" }, createdAt: { gte: since } },
       select: { symbol: true, amount: true },
     }),
-    prisma.fiatPayout.findMany({
+    db.fiatPayout.findMany({
       where: { userId, status: { not: "FAILED" }, createdAt: { gte: since } },
       select: { fromSymbol: true, fromAmount: true },
     }),
@@ -70,10 +82,11 @@ export async function assertWithinDailyLimit(
   userId: string,
   symbol: string,
   amount: number,
+  db: Db = prisma,
 ): Promise<void> {
   if (!(DAILY_LIMIT_USD > 0)) return;
   const [{ usedUsd, remainingUsd }, prices] = await Promise.all([
-    dailyLimitStatus(userId),
+    dailyLimitStatus(userId, db),
     usdPriceMap(),
   ]);
   const thisUsd = amount * (prices.get(symbol) ?? 0);
@@ -112,6 +125,12 @@ export async function requestWithdrawal(
   const fee = withdrawFee(symbol);
   const total = amount + fee;
   return withLedger(async (tx) => {
+    // Serialize per user, then check the cap inside the same transaction. The
+    // route used to assert the limit beforehand, which two concurrent requests
+    // could both satisfy before either had locked anything.
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${userId})::bigint)`;
+    await assertWithinDailyLimit(userId, symbol, amount, tx);
+
     const w = await tx.withdrawal.create({
       data: { userId, chain, symbol, amount, fee, toAddress, status: "REQUESTED" },
     });

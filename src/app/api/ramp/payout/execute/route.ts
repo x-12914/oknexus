@@ -6,6 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { verifyTotpOnce, decryptSecret } from "@/lib/totp";
 import { DailyLimitError } from "@/lib/custody/withdrawals";
 import { payoutConfigured } from "@/lib/ramp/bitnob-payout";
+import { payoutRequiresKyc } from "@/lib/ramp/flags";
 import { requestPayout } from "@/lib/ramp/payouts";
 
 const Schema = z.object({
@@ -69,13 +70,18 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/** Controls for the UI: whether a 2FA code is needed before submitting. */
+/** Controls for the UI: whether a 2FA code and a verified identity are needed. */
 export async function GET() {
+  const kycRequired = payoutRequiresKyc();
   const userId = await sessionUserId();
-  if (!userId) return Response.json({ needs2FA: false });
+  if (!userId) return Response.json({ needs2FA: false, kycRequired, kycApproved: false });
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { twoFAEnabled: true },
+    select: { twoFAEnabled: true, kycStatus: true },
   });
-  return Response.json({ needs2FA: !!user?.twoFAEnabled });
+  return Response.json({
+    needs2FA: !!user?.twoFAEnabled,
+    kycRequired,
+    kycApproved: user?.kycStatus === "APPROVED",
+  });
 }
