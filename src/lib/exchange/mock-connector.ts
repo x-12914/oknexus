@@ -31,6 +31,7 @@ import type {
   SwapResult,
   Ticker,
 } from "./types";
+import { SWAP_PCT } from "@/lib/fees";
 
 const MARKETS: MarketInfo[] = [
   { symbol: "BTC/USDT", base: "BTC", quote: "USDT", tickSize: 0.1, stepSize: 0.000001, makerFee: 0.001, takerFee: 0.002 },
@@ -206,7 +207,7 @@ const SWAP_ASSETS: { symbol: string; name: string }[] = [
   { symbol: "ADA", name: "Cardano" },
 ];
 
-const SWAP_FEE = 0.003; // 0.30% taken from the received asset
+const SWAP_FEE = SWAP_PCT; // rate lives in the fee schedule, not here
 
 function usdtPrice(symbol: string): number {
   if (symbol === "USDT") return 1;

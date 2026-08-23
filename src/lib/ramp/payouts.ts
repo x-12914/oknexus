@@ -14,6 +14,7 @@ import {
 } from "./bitnob-payout";
 import { livePayoutsEnabled, bitnobConfigured, getCompanyBalances } from "@/lib/bitnob";
 import { payoutRequiresKyc } from "./flags";
+import { RAMP_PCT } from "@/lib/fees";
 import type { FiatPayoutView } from "./types";
 
 export type { FiatPayoutView };
@@ -133,7 +134,13 @@ export async function requestPayout(
     throw new Error("That quote has expired — request a new one.");
   }
 
-  const amount = quantize(quote.fromAmount);
+  // The provider's spread is already inside the rate; this is the OKNexus
+  // margin on top. The user is debited provider cost + margin, while only the
+  // provider cost leaves our float — the difference is the revenue, and it is
+  // recorded on the row so it can be reconciled rather than inferred.
+  const providerCost = quantize(quote.fromAmount);
+  const platformFee = quantize(providerCost * RAMP_PCT);
+  const amount = quantize(providerCost + platformFee);
   if (!(amount > 0)) throw new Error("That quote has no payable amount.");
 
   // Priced before the transaction opens: this is a network call, and doing it
@@ -170,6 +177,7 @@ export async function requestPayout(
           fiatAmount: quote.fiatAmount,
           effectiveRate: quote.effectiveRate,
           feeFiat: quote.feeFiat,
+          platformFee,
           country: config.country,
           bankCode: bank.code,
           bankName: bank.name,

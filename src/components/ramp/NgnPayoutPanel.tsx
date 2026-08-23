@@ -426,7 +426,7 @@ export function NgnPayoutPanel() {
 
       {quote && (
         <div className="space-y-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4 text-sm">
-          <Row label="You send" value={`${fmt(quote.fromAmount, 6)} ${quote.fromSymbol}`} strong />
+          <Row label="You send" value={`${fmt(quote.totalFrom, 6)} ${quote.fromSymbol}`} strong />
           <Row label="They receive" value={`${fmt(quote.fiatAmount)} ${quote.fiatCode}`} strong />
           <Row
             label="Rate"
@@ -435,8 +435,12 @@ export function NgnPayoutPanel() {
           {/* Derived, not read from the response: the provider always reports
               fees: 0 and takes its margin inside the rate instead. */}
           <Row
-            label={`Spread (${quote.spreadPct.toFixed(2)}%)`}
+            label={`Network spread (${quote.spreadPct.toFixed(2)}%)`}
             value={`${fmt(quote.feeFiat)} ${quote.fiatCode}`}
+          />
+          <Row
+            label="OKNexus fee"
+            value={`${fmt(quote.platformFee, 6)} ${quote.fromSymbol}`}
           />
           <div className="border-t border-[var(--color-border)] pt-2 text-xs text-[var(--color-muted)]">
             {expired

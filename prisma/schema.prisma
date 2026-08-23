@@ -585,6 +585,8 @@ model FiatPayout {
   effectiveRate    Decimal          @db.Decimal(30, 10)
   /// Provider margin in fiat, derived from the rate spread (their fee field is always 0).
   feeFiat          Decimal          @default(0) @db.Decimal(30, 10)
+  /// OKNexus margin, charged on top of the provider's spread, in fromSymbol.
+  platformFee      Decimal          @default(0) @db.Decimal(30, 10)
   country          String
   bankCode         String
   bankName         String

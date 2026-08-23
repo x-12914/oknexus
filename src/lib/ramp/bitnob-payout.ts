@@ -1,6 +1,7 @@
 import "server-only";
 import { bitnobRequest, bitnobConfigured, initializePayout, finalizePayout } from "@/lib/bitnob";
 import type { PayoutBank, PayoutConfig, PayoutQuote, ResolvedAccount } from "./types";
+import { RAMP_PCT } from "@/lib/fees";
 
 /**
  * NGN off-ramp over Bitnob payouts.
@@ -160,6 +161,8 @@ function normalizeQuote(p: RawPayout): PayoutQuote {
     effectiveRate,
     spreadPct,
     feeFiat,
+    platformFee: fromAmount * RAMP_PCT,
+    totalFrom: fromAmount * (1 + RAMP_PCT),
     expiresAt: p.expires_at ? Date.parse(p.expires_at) : Date.now() + 15 * 60_000,
   };
 }

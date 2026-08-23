@@ -40,6 +40,10 @@ export interface PayoutQuote {
    */
   spreadPct: number;
   feeFiat: number;
+  /** OKNexus margin, in fromSymbol, on top of the provider's spread. */
+  platformFee: number;
+  /** What the user is actually debited: provider cost + platformFee. */
+  totalFrom: number;
   expiresAt: number; // ms epoch
 }
 
