@@ -39,7 +39,15 @@ export interface DailyLimitStatus {
   remainingUsd: number;
 }
 
-async function usdPriceMap(): Promise<Map<string, number>> {
+/**
+ * USD prices for valuing the cap.
+ *
+ * This is a NETWORK call. Fetch it before opening a transaction and pass the
+ * result in — running it inside one holds a connection and the per-user
+ * advisory lock while waiting on a third party, which blew Prisma's 5s
+ * interactive-transaction timeout and failed every withdrawal.
+ */
+export async function usdPriceMap(): Promise<Map<string, number>> {
   const assets = await getExchange().listSwapAssets();
   const m = new Map<string, number>(assets.map((a) => [a.symbol, a.usdtPrice]));
   m.set("USDT", 1);
@@ -58,6 +66,7 @@ type Db = Pick<typeof prisma, "withdrawal" | "fiatPayout">;
 export async function dailyLimitStatus(
   userId: string,
   db: Db = prisma,
+  pricesIn?: Map<string, number>,
 ): Promise<DailyLimitStatus> {
   const since = new Date(Date.now() - 24 * 3600 * 1000);
   const [rows, payouts, prices] = await Promise.all([
@@ -69,7 +78,7 @@ export async function dailyLimitStatus(
       where: { userId, status: { not: "FAILED" }, createdAt: { gte: since } },
       select: { fromSymbol: true, fromAmount: true },
     }),
-    usdPriceMap(),
+    pricesIn ? Promise.resolve(pricesIn) : usdPriceMap(),
   ]);
   const usedUsd =
     rows.reduce((s, r) => s + Number(r.amount) * (prices.get(r.symbol) ?? 0), 0) +
@@ -83,12 +92,13 @@ export async function assertWithinDailyLimit(
   symbol: string,
   amount: number,
   db: Db = prisma,
+  pricesIn?: Map<string, number>,
 ): Promise<void> {
   if (!(DAILY_LIMIT_USD > 0)) return;
-  const [{ usedUsd, remainingUsd }, prices] = await Promise.all([
-    dailyLimitStatus(userId, db),
-    usdPriceMap(),
-  ]);
+  // Only the usage sum needs to run inside the caller's transaction. Prices are
+  // uncontended, so callers holding a lock fetch them first and pass them in.
+  const prices = pricesIn ?? (await usdPriceMap());
+  const { usedUsd, remainingUsd } = await dailyLimitStatus(userId, db, prices);
   const thisUsd = amount * (prices.get(symbol) ?? 0);
   if (usedUsd + thisUsd > DAILY_LIMIT_USD) {
     throw new DailyLimitError(
@@ -124,6 +134,8 @@ export async function requestWithdrawal(
 
   const fee = withdrawFee(symbol);
   const total = amount + fee;
+  // Priced before the transaction opens — see usdPriceMap.
+  const prices = await usdPriceMap();
   return withLedger(async (tx) => {
     // Serialize per user, then check the cap inside the same transaction. The
     // route used to assert the limit beforehand, which two concurrent requests
@@ -131,7 +143,7 @@ export async function requestWithdrawal(
     // $executeRaw, not $queryRaw: the function returns void and Prisma cannot
     // deserialize a void column, which made every call throw.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId})::bigint)`;
-    await assertWithinDailyLimit(userId, symbol, amount, tx);
+    await assertWithinDailyLimit(userId, symbol, amount, tx, prices);
 
     const w = await tx.withdrawal.create({
       data: { userId, chain, symbol, amount, fee, toAddress, status: "REQUESTED" },

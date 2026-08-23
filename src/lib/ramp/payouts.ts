@@ -3,7 +3,7 @@ import { LedgerType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { withLedger, lock, unlock, settleLocked, quantize } from "@/lib/ledger";
 import { notify } from "@/lib/notifications";
-import { assertWithinDailyLimit } from "@/lib/custody/withdrawals";
+import { assertWithinDailyLimit, usdPriceMap } from "@/lib/custody/withdrawals";
 import {
   fetchQuote,
   executePayout,
@@ -136,6 +136,10 @@ export async function requestPayout(
   const amount = quantize(quote.fromAmount);
   if (!(amount > 0)) throw new Error("That quote has no payable amount.");
 
+  // Priced before the transaction opens: this is a network call, and doing it
+  // under the advisory lock blew the 5s interactive-transaction timeout.
+  const prices = await usdPriceMap();
+
   // Create + lock atomically. The unique constraint on providerPayoutId is what
   // actually stops a double-submitted quote: the second insert fails and rolls
   // back its lock, rather than reserving the funds twice.
@@ -153,7 +157,7 @@ export async function requestPayout(
       // Checked here rather than in the route: the payable amount is only known
       // once the quote has been re-read, and a client-supplied figure must never
       // be what the cap is measured against.
-      await assertWithinDailyLimit(userId, quote.fromSymbol, amount, tx);
+      await assertWithinDailyLimit(userId, quote.fromSymbol, amount, tx, prices);
 
       const created = await tx.fiatPayout.create({
         data: {
