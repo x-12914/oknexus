@@ -26,6 +26,8 @@ const TRANSFER_EVENT = parseAbiItem(
 // mainnet — REAL FUNDS: also point INFURA_API_KEY at a mainnet key and fund the hot
 // wallet with real ETH. Production stays on Sepolia until this env var is set.
 const IS_MAINNET = process.env.EVM_NETWORK === "mainnet";
+// Mainnet waits for 12 confirmations by default rather than 3: a reorg that
+// costs nothing on a testnet costs a real credit here. Override deliberately.
 const CHAIN = IS_MAINNET ? mainnet : sepolia;
 const INFURA_HOST = IS_MAINNET ? "mainnet.infura.io" : "sepolia.infura.io";
 const EXPLORER = IS_MAINNET ? "https://etherscan.io" : "https://sepolia.etherscan.io";
@@ -66,7 +68,7 @@ export class EvmAdapter implements ChainAdapter {
       chain: process.env.EVM_CHAIN_NAME ?? "ethereum-sepolia",
       kind: "EVM",
       nativeSymbol: process.env.EVM_NATIVE_SYMBOL ?? "ETH",
-      minConfirmations: Number(process.env.EVM_MIN_CONFIRMATIONS ?? 3),
+      minConfirmations: Number(process.env.EVM_MIN_CONFIRMATIONS ?? (IS_MAINNET ? 12 : 3)),
       explorerTxUrl: (h) => `${EXPLORER}/tx/${h}`,
       explorerAddressUrl: (a) => `${EXPLORER}/address/${a}`,
       tokens: parseTokens(),
