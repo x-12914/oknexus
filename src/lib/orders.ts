@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getExchange } from "@/lib/exchange";
 import { withLedger, credit, debit, lock, unlock, InsufficientBalanceError } from "@/lib/ledger";
 import { ensureMarkets, marketMeta } from "@/lib/seed";
+import { getFeeProfile } from "@/lib/fees";
 import { notify } from "@/lib/notifications";
 import type { OrderResult, PlaceOrderInput } from "@/lib/exchange/types";
 
@@ -37,19 +38,29 @@ function toResult(o: Order, symbol: string): OrderResult {
   };
 }
 
-/** Settle a full fill: move funds, charge the taker fee, and record the trade. */
+/**
+ * Settle a full fill: move funds, charge the fee, and record the trade.
+ *
+ * The rate is passed in rather than read off the market, because it depends on
+ * the trader's 30-day volume tier. Market.makerFee/takerFee are no longer
+ * consulted — the fee schedule in lib/fees.ts is the single source of truth.
+ *
+ * Every fill here is a taker fill: there is no resting-order matcher yet, so
+ * nothing is ever filled as a maker. When one exists, pass the maker rate.
+ */
 async function applyFill(
   tx: Tx,
   o: { id: string; userId: string; marketId: string; side: "BUY" | "SELL" },
   meta: MarketMeta,
   quantity: number,
   fillPrice: number,
+  feeRate: number,
 ): Promise<void> {
-  const { base, quote, takerFee } = meta;
+  const { base, quote } = meta;
   const notional = quantity * fillPrice;
   const ref = { type: LedgerType.SPOT, refId: o.id, memo: `Spot ${o.side} ${base}` };
   if (o.side === "BUY") {
-    const feeBase = quantity * takerFee;
+    const feeBase = quantity * feeRate;
     await debit(tx, o.userId, quote, notional, ref);
     await credit(tx, o.userId, base, quantity - feeBase, ref);
     await tx.trade.create({
@@ -65,7 +76,7 @@ async function applyFill(
       },
     });
   } else {
-    const feeQuote = notional * takerFee;
+    const feeQuote = notional * feeRate;
     await debit(tx, o.userId, base, quantity, ref);
     await credit(tx, o.userId, quote, notional - feeQuote, ref);
     await tx.trade.create({
@@ -101,6 +112,11 @@ export async function placeOrder(input: PlaceOrderInput): Promise<OrderResult> {
   const ticker = await getExchange().getTicker(input.symbol);
   const { userId, side, type, quantity } = input;
   const { base, quote } = meta;
+
+  // The trader's rate comes from their 30-day volume tier, resolved before the
+  // transaction opens. Every fill below is a taker fill — there is no resting
+  // matcher, so nothing is ever filled as a maker.
+  const { takerPct } = await getFeeProfile(userId);
 
   // Stop / stop-limit: rest as PENDING until the trigger is hit. No funds are
   // locked until then, so they must be available when it triggers.
@@ -153,7 +169,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<OrderResult> {
           status: "FILLED",
         },
       });
-      await applyFill(tx, order, meta, quantity, fillPrice);
+      await applyFill(tx, order, meta, quantity, fillPrice, takerPct);
       return toResult(order, input.symbol);
     }
 
@@ -227,6 +243,8 @@ async function executeTriggeredStop(
   ticker: { ask: number; bid: number },
 ): Promise<boolean> {
   const qty = Number(o.quantity);
+  // Resolved per order owner, and before the transaction opens.
+  const { takerPct: feeRate } = await getFeeProfile(o.userId);
   const pairHref = `/trade/${meta.base}-${meta.quote}`;
   let outcome: { kind: "filled"; price: number } | { kind: "rested" } | null = null;
 
@@ -238,7 +256,7 @@ async function executeTriggeredStop(
 
       if (o.type === "STOP") {
         const price = o.side === "BUY" ? ticker.ask : ticker.bid;
-        await applyFill(tx, cur, meta, qty, price);
+        await applyFill(tx, cur, meta, qty, price, feeRate);
         await tx.order.update({
           where: { id: o.id },
           data: { status: "FILLED", filledQty: qty, avgFillPrice: price },
@@ -250,7 +268,7 @@ async function executeTriggeredStop(
       const limit = Number(o.price);
       const marketable = o.side === "BUY" ? limit >= ticker.ask : limit <= ticker.bid;
       if (marketable) {
-        await applyFill(tx, cur, meta, qty, limit);
+        await applyFill(tx, cur, meta, qty, limit, feeRate);
         await tx.order.update({
           where: { id: o.id },
           data: { status: "FILLED", filledQty: qty, avgFillPrice: limit },

@@ -31,15 +31,20 @@ import type {
   SwapResult,
   Ticker,
 } from "./types";
-import { SWAP_PCT } from "@/lib/fees";
+import { SWAP_PCT, VIP_TIERS, MAKER_MULTIPLIER } from "@/lib/fees";
+
+// Advertised rates track the schedule's entry tier. Settlement uses the
+// trader's own tier, so a hardcoded number here would misreport the real cost.
+const BASE_TAKER = VIP_TIERS[0].tradingPct;
+const BASE_MAKER = BASE_TAKER * MAKER_MULTIPLIER;
 
 const MARKETS: MarketInfo[] = [
-  { symbol: "BTC/USDT", base: "BTC", quote: "USDT", tickSize: 0.1, stepSize: 0.000001, makerFee: 0.001, takerFee: 0.002 },
-  { symbol: "ETH/USDT", base: "ETH", quote: "USDT", tickSize: 0.01, stepSize: 0.0001, makerFee: 0.001, takerFee: 0.002 },
-  { symbol: "SOL/USDT", base: "SOL", quote: "USDT", tickSize: 0.01, stepSize: 0.01, makerFee: 0.001, takerFee: 0.002 },
-  { symbol: "BNB/USDT", base: "BNB", quote: "USDT", tickSize: 0.01, stepSize: 0.001, makerFee: 0.001, takerFee: 0.002 },
-  { symbol: "XRP/USDT", base: "XRP", quote: "USDT", tickSize: 0.0001, stepSize: 1, makerFee: 0.001, takerFee: 0.002 },
-  { symbol: "ADA/USDT", base: "ADA", quote: "USDT", tickSize: 0.0001, stepSize: 1, makerFee: 0.001, takerFee: 0.002 },
+  { symbol: "BTC/USDT", base: "BTC", quote: "USDT", tickSize: 0.1, stepSize: 0.000001, makerFee: BASE_MAKER, takerFee: BASE_TAKER },
+  { symbol: "ETH/USDT", base: "ETH", quote: "USDT", tickSize: 0.01, stepSize: 0.0001, makerFee: BASE_MAKER, takerFee: BASE_TAKER },
+  { symbol: "SOL/USDT", base: "SOL", quote: "USDT", tickSize: 0.01, stepSize: 0.01, makerFee: BASE_MAKER, takerFee: BASE_TAKER },
+  { symbol: "BNB/USDT", base: "BNB", quote: "USDT", tickSize: 0.01, stepSize: 0.001, makerFee: BASE_MAKER, takerFee: BASE_TAKER },
+  { symbol: "XRP/USDT", base: "XRP", quote: "USDT", tickSize: 0.0001, stepSize: 1, makerFee: BASE_MAKER, takerFee: BASE_TAKER },
+  { symbol: "ADA/USDT", base: "ADA", quote: "USDT", tickSize: 0.0001, stepSize: 1, makerFee: BASE_MAKER, takerFee: BASE_TAKER },
 ];
 
 const BASE_PRICE: Record<string, number> = {
