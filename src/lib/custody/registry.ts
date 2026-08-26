@@ -63,3 +63,16 @@ export function chainLabel(chain: string): string {
   if (chain.includes("bitcoin")) return "Bitcoin";
   return chain;
 }
+
+/**
+ * Whether a chain is currently offered to users.
+ *
+ * getChainAdapter stays permissive so historical rows and admin tooling can
+ * still resolve an adapter for a chain we no longer serve. User-facing routes
+ * must check this instead: the deposit scanner only walks ALL_CHAINS, so
+ * handing someone an address on a disabled chain would mean funds sent to a
+ * key we hold on a network we never look at.
+ */
+export function isChainEnabled(chain: string): boolean {
+  return ALL_CHAINS.includes(chain);
+}

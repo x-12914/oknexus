@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { sessionUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { DEFAULT_CHAIN } from "@/lib/custody/registry";
+import { DEFAULT_CHAIN, isChainEnabled } from "@/lib/custody/registry";
 import {
   requestWithdrawal,
   dailyLimitStatus,
@@ -45,6 +45,11 @@ export async function POST(req: NextRequest) {
   const parsed = Schema.safeParse(await req.json());
   if (!parsed.success) return Response.json({ error: "Invalid request" }, { status: 400 });
 
+  const chain = parsed.data.chain || DEFAULT_CHAIN;
+  if (!isChainEnabled(chain)) {
+    return Response.json({ error: "Unsupported chain" }, { status: 400 });
+  }
+
   // 2FA-on-withdraw: when the account has 2FA, a fresh authenticator code is required
   // to confirm so a hijacked session can't drain funds without the device.
   const user = await prisma.user.findUnique({
@@ -72,7 +77,7 @@ export async function POST(req: NextRequest) {
     // per-user lock — checking it out here as well would just be a racy no-op.
     const w = await requestWithdrawal(
       userId,
-      parsed.data.chain || DEFAULT_CHAIN,
+      chain,
       parsed.data.symbol,
       parsed.data.amount,
       parsed.data.toAddress,
