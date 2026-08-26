@@ -294,6 +294,24 @@ export class EvmAdapter implements ChainAdapter {
     return { txHash, amount: Number(formatEther(value)) };
   }
 
+  /**
+   * Gas cost of one send, in ETH.
+   *
+   * Returns 0 for ERC-20s: their gas is paid in ETH but the fee is charged in
+   * the token, and converting needs a price this layer doesn't have. The caller
+   * falls back to its floor for those until token withdrawals are enabled.
+   */
+  async estimateNetworkFee(symbol: string): Promise<number> {
+    if (symbol !== this.config.nativeSymbol) return 0;
+    try {
+      const fees = await this.pub().estimateFeesPerGas();
+      const wei = BigInt(21000) * fees.maxFeePerGas;
+      return Number(wei) / 1e18;
+    } catch {
+      return 0;
+    }
+  }
+
   validateAddress(address: string): boolean {
     return isAddress(address);
   }

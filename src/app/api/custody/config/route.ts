@@ -12,8 +12,15 @@ export async function GET() {
       minConfirmations: c.minConfirmations,
       assets: [c.nativeSymbol, ...c.tokens.map((t) => t.symbol)],
     }));
+    // Priced live per chain, so the figure shown matches what will be charged.
     const withdrawFees: Record<string, number> = {};
-    for (const c of chains) for (const s of c.assets) withdrawFees[s] = withdrawFee(s);
+    await Promise.all(
+      chains.flatMap((c) =>
+        c.assets.map(async (s) => {
+          withdrawFees[s] = await withdrawFee(c.chain, s);
+        }),
+      ),
+    );
     return Response.json({ configured, chains, withdrawFees });
   } catch {
     return Response.json({ configured: false, chains: [], withdrawFees: {} });

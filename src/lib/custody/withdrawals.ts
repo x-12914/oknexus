@@ -4,10 +4,10 @@ import { withLedger, lock, unlock, settleLocked, quantize } from "@/lib/ledger";
 import { notify } from "@/lib/notifications";
 import { getExchange } from "@/lib/exchange";
 import { getChainAdapter } from "./registry";
+import { WITHDRAWAL_MARGIN_PCT } from "@/lib/fees";
 
-// Flat network fee per asset, charged on withdrawal and kept by the platform
-// (the hot wallet pays the real on-chain gas). A richer per-chain schedule can
-// slot in here later.
+// Floor per asset, used only when the chain can't be reached or can't price
+// the asset. The real figure is measured live — see withdrawFee below.
 const WITHDRAW_FEES: Record<string, number> = {
   ETH: 0.0004,
   USDT: 1,
@@ -16,14 +16,39 @@ const WITHDRAW_FEES: Record<string, number> = {
   BTC: 0.00006,
 };
 
-/** Flat withdrawal fee for an asset (0 if none configured). */
-export function withdrawFee(symbol: string): number {
-  return WITHDRAW_FEES[symbol] ?? 0;
+/**
+ * Withdrawal fee: live network cost plus a margin.
+ *
+ * A BTC transaction and an ERC-20 transfer cost wildly different amounts and
+ * both move with demand, so the cost is measured per chain rather than read
+ * from a table. WITHDRAWAL_MARGIN_PCT on top is the secondary revenue.
+ *
+ * WITHDRAW_FEES is now only a floor, used when a chain can't be reached or
+ * can't price the asset (ERC-20s, whose gas is paid in ETH). Charging nothing
+ * because an RPC hiccuped would mean eating the network cost.
+ */
+const FEE_TTL_MS = 30_000;
+const feeCache = new Map<string, { at: number; value: number }>();
+
+export async function withdrawFee(chain: string, symbol: string): Promise<number> {
+  const key = `${chain}:${symbol}`;
+  const hit = feeCache.get(key);
+  const now = Date.now();
+  if (hit && now - hit.at < FEE_TTL_MS) return hit.value;
+
+  let value = WITHDRAW_FEES[symbol] ?? 0;
+  try {
+    const measured = await getChainAdapter(chain).estimateNetworkFee(symbol);
+    if (measured > 0) value = quantize(measured * (1 + WITHDRAWAL_MARGIN_PCT));
+  } catch {
+    // Keep the floor: a fee lookup failing must not make withdrawals free.
+  }
+  feeCache.set(key, { at: now, value });
+  return value;
 }
 
 export class DailyLimitError extends Error {}
 
-// Rolling-24h withdrawal cap in USD (0 / unset = no limit).
 /**
  * Rolling-24h withdrawal cap in USD.
  *
@@ -132,7 +157,7 @@ export async function requestWithdrawal(
   amount = quantize(amount);
   if (!(amount > 0)) throw new Error("Amount must be positive");
 
-  const fee = withdrawFee(symbol);
+  const fee = await withdrawFee(chain, symbol);
   const total = amount + fee;
   // Priced before the transaction opens — see usdPriceMap.
   const prices = await usdPriceMap();

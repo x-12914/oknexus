@@ -151,6 +151,25 @@ export class BitcoinAdapter implements ChainAdapter {
     return body.trim();
   }
 
+  /**
+   * Live sat/vB from Esplora, sized for a typical 1-input, 2-output P2WPKH
+   * spend — the same vsize formula the withdrawal builder uses, so the quote
+   * and the actual send agree. Targets 6-block confirmation.
+   */
+  async estimateNetworkFee(symbol: string): Promise<number> {
+    if (symbol !== this.config.nativeSymbol) return 0;
+    try {
+      const rates: Record<string, number> = await fetch(`${this.base}/fee-estimates`).then((r) =>
+        r.json(),
+      );
+      const rate = Math.max(1, Math.ceil(rates["6"] ?? rates["3"] ?? rates["1"] ?? 2));
+      const vbytes = 10 + 1 * 68 + 2 * 31;
+      return (vbytes * rate) / SATS;
+    } catch {
+      return 0;
+    }
+  }
+
   validateAddress(address: string): boolean {
     try {
       bitcoin.address.toOutputScript(address, NETWORK);

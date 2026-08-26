@@ -37,6 +37,15 @@ export interface ChainAdapter {
   scanDeposits(watched: string[], fromBlock: bigint, toBlock: bigint): Promise<OnChainDeposit[]>;
   /** Sign & broadcast a withdrawal from the hot wallet; returns the tx hash. */
   sendWithdrawal(symbol: string, to: string, amount: number): Promise<string>;
+  /**
+   * Live network cost of sending `symbol`, denominated in `symbol`.
+   *
+   * A BTC transaction priced in sat/vB and an ERC-20 transfer priced in gas
+   * have nothing in common, so each adapter measures its own chain rather than
+   * a shared table guessing on their behalf. Should fall back to a sane
+   * estimate rather than throwing — a fee lookup must not break the page.
+   */
+  estimateNetworkFee(symbol: string): Promise<number>;
   /** Whether `address` is a valid destination on this chain. */
   validateAddress(address: string): boolean;
   /** Mined status of a broadcast tx, used to confirm withdrawals. */

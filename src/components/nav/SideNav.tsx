@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Receipt,
   CandlestickChart,
   ArrowLeftRight,
   CreditCard,
@@ -31,6 +32,7 @@ export const NAV = [
   { href: "/p2p", label: "P2P Trading", icon: Users },
   { href: "/alerts", label: "Price Alerts", icon: BellRing },
   { href: "/explore", label: "Explore", icon: Compass },
+  { href: "/fees", label: "Fees", icon: Receipt },
 ] as const;
 
 export function SideNav() {

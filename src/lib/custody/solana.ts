@@ -143,6 +143,15 @@ export class SolanaAdapter implements ChainAdapter {
     return conn.sendRawTransaction(raw);
   }
 
+  /**
+   * Solana charges a flat 5,000 lamports per signature, so this is a constant
+   * rather than a live lookup — there is no fee market to query.
+   */
+  async estimateNetworkFee(symbol: string): Promise<number> {
+    if (symbol !== this.config.nativeSymbol) return 0;
+    return 5000 / LAMPORTS_PER_SOL;
+  }
+
   validateAddress(address: string): boolean {
     try {
       return !!new PublicKey(address);
