@@ -51,6 +51,9 @@ export function NgnPayoutPanel() {
   const [resolveError, setResolveError] = useState<{ key: string; message: string } | null>(null);
 
   const [needs2FA, setNeeds2FA] = useState(false);
+  // A fiat payout always takes an authenticator code, so an account without one
+  // is blocked outright rather than being allowed to fail at submit.
+  const [twoFABlocked, setTwoFABlocked] = useState(false);
   const [kycBlocked, setKycBlocked] = useState(false);
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -84,6 +87,7 @@ export function NgnPayoutPanel() {
       .payoutControls()
       .then((r) => {
         setNeeds2FA(r.needs2FA);
+        setTwoFABlocked(!r.twoFAReady);
         setKycBlocked(r.kycRequired && !r.kycApproved);
       })
       .catch(() => {});
@@ -222,6 +226,7 @@ export function NgnPayoutPanel() {
 
   const canSubmit =
     !kycBlocked &&
+    !twoFABlocked &&
     Boolean(quote) &&
     !expired &&
     accountValid &&
@@ -243,6 +248,24 @@ export function NgnPayoutPanel() {
           Sell {fromSymbol} and receive {config.fiatCode} directly in your bank account.
         </p>
       </div>
+
+      {twoFABlocked && (
+        <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4">
+          <p className="text-sm font-medium text-[var(--color-foreground)]">
+            Turn on two-factor authentication first
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-[var(--color-muted)]">
+            Bank withdrawals can&apos;t be reversed, so we ask for an authenticator code every time
+            you send money out. Setting it up takes a minute.
+          </p>
+          <a
+            href="/settings/security"
+            className="mt-3 inline-block text-sm font-medium text-[var(--color-accent)] hover:underline"
+          >
+            Set up two-factor
+          </a>
+        </div>
+      )}
 
       {kycBlocked && (
         <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4">

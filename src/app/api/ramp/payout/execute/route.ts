@@ -30,26 +30,36 @@ export async function POST(req: NextRequest) {
   const parsed = Schema.safeParse(await req.json());
   if (!parsed.success) return Response.json({ error: "Invalid request" }, { status: 400 });
 
-  // Same 2FA gate as on-chain withdrawals. Without it this route would be a way
-  // around that control — it drains the same balances, just to a bank account.
+  // Two-factor is REQUIRED here, not merely honoured when the user happens to have
+  // switched it on. This route sends real money to a bank account and the transfer
+  // is not reversible, so an account with no second factor must not be able to
+  // drain itself — a stolen session would otherwise be enough.
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { twoFAEnabled: true, twoFASecret: true },
   });
-  if (user?.twoFAEnabled) {
-    if (
-      !rateLimit(`payout-2fa:${userId}`, { max: 6, windowMs: 600_000, lockoutMs: 600_000 }).allowed
-    ) {
-      return Response.json({ error: "Too many attempts. Please try again later." }, { status: 429 });
-    }
-    const secret = user.twoFASecret ? decryptSecret(user.twoFASecret) : null;
-    const code = String(parsed.data.code ?? "");
-    if (!code || !secret || !verifyTotpOnce(userId, secret, code)) {
-      return Response.json(
-        { error: "Enter your authenticator code to confirm this payout.", needCode: true },
-        { status: 403 },
-      );
-    }
+  if (!user?.twoFAEnabled || !user.twoFASecret) {
+    return Response.json(
+      {
+        error:
+          "Set up two-factor authentication before withdrawing to a bank account. You can turn it on under Settings, Security.",
+        needsSetup: true,
+      },
+      { status: 403 },
+    );
+  }
+  if (
+    !rateLimit(`payout-2fa:${userId}`, { max: 6, windowMs: 600_000, lockoutMs: 600_000 }).allowed
+  ) {
+    return Response.json({ error: "Too many attempts. Please try again later." }, { status: 429 });
+  }
+  const secret = decryptSecret(user.twoFASecret);
+  const code = String(parsed.data.code ?? "");
+  if (!code || !secret || !verifyTotpOnce(userId, secret, code)) {
+    return Response.json(
+      { error: "Enter your authenticator code to confirm this payout.", needCode: true },
+      { status: 403 },
+    );
   }
 
   try {
@@ -70,17 +80,25 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/** Controls for the UI: whether a 2FA code and a verified identity are needed. */
+/**
+ * Controls for the UI. `needs2FA` is now unconditionally true — a fiat payout
+ * always takes a code — while `twoFAReady` says whether the user has an
+ * authenticator set up yet, so the panel can tell "enter your code" apart from
+ * "go and enable this first".
+ */
 export async function GET() {
   const kycRequired = payoutRequiresKyc();
   const userId = await sessionUserId();
-  if (!userId) return Response.json({ needs2FA: false, kycRequired, kycApproved: false });
+  if (!userId) {
+    return Response.json({ needs2FA: true, twoFAReady: false, kycRequired, kycApproved: false });
+  }
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { twoFAEnabled: true, kycStatus: true },
   });
   return Response.json({
-    needs2FA: !!user?.twoFAEnabled,
+    needs2FA: true,
+    twoFAReady: !!user?.twoFAEnabled,
     kycRequired,
     kycApproved: user?.kycStatus === "APPROVED",
   });

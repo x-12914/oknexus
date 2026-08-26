@@ -294,7 +294,12 @@ export const api = {
 
   payoutControls: () =>
     fetch("/api/ramp/payout/execute", { cache: "no-store" }).then((r) =>
-      j<{ needs2FA: boolean; kycRequired: boolean; kycApproved: boolean }>(r),
+      j<{
+        needs2FA: boolean;
+        twoFAReady: boolean;
+        kycRequired: boolean;
+        kycApproved: boolean;
+      }>(r),
     ),
 
   payoutExecute: (input: {
