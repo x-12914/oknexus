@@ -4,7 +4,14 @@ import type { KycApplicant, KycLevel, KycProvider, KycSession, KycVerdict } from
 
 // Didit hosted identity verification (KYC + AML). We create a session, send the user
 // to the hosted flow, and receive the result via a signed webhook.
-const SESSION_URL = process.env.DIDIT_SESSION_URL ?? "https://verification.didit.me/v1/session/";
+//
+// v2, NOT v1: the v1 endpoint silently ignores `workflow_id` and falls back to the
+// account's default workflow. It accepts a fabricated uuid with a 201, so there is no
+// error to notice — we were unknowingly running every verification through the free
+// document-only workflow instead of the KYC + AML one this app is configured for.
+// v2 validates the id ("Invalid workflow_id.") and returns the same session_id/url
+// fields, so nothing downstream changes.
+const SESSION_URL = process.env.DIDIT_SESSION_URL ?? "https://verification.didit.me/v2/session/";
 
 export function diditConfigured(): boolean {
   return Boolean(process.env.DIDIT_API_KEY && process.env.DIDIT_WORKFLOW_ID);

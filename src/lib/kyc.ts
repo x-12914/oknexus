@@ -40,15 +40,45 @@ export async function startKycVerification(userId: string): Promise<{ url: strin
   return { url: session.url };
 }
 
-/** Whether a Didit `decision` carries an unresolved AML/sanctions hit. */
-function hasAmlHit(decision: unknown): boolean {
-  const screenings = (decision as { aml_screenings?: { status?: string }[] })?.aml_screenings;
-  if (!Array.isArray(screenings)) return false;
-  const clear = new Set(["clear", "approved", "passed", "no_match", "not_found", "completed"]);
-  return screenings.some((s) => {
-    const st = String(s?.status ?? "").toLowerCase();
-    return st !== "" && !clear.has(st);
-  });
+const AML_CLEAR = new Set(["clear", "approved", "passed", "no_match", "not_found", "completed"]);
+
+/**
+ * Read the AML/sanctions outcome out of a Didit `decision`.
+ *
+ * Two shapes are handled because the v1 and v2 APIs differ: v1 nests an
+ * `aml_screenings` array, v2 exposes a single `aml` object. "unknown" means AML
+ * ran but we could not read a verdict, which must NOT be treated as clear.
+ */
+function amlVerdict(decision: unknown): "clear" | "hit" | "unknown" {
+  const d = decision as {
+    aml_screenings?: { status?: string }[];
+    aml?: { status?: string; total_hits?: number };
+  } | null;
+
+  const screenings = d?.aml_screenings;
+  if (Array.isArray(screenings)) {
+    const statuses = screenings.map((s) => String(s?.status ?? "").toLowerCase()).filter(Boolean);
+    if (statuses.length === 0) return "unknown";
+    return statuses.some((st) => !AML_CLEAR.has(st)) ? "hit" : "clear";
+  }
+
+  const aml = d?.aml;
+  if (aml && typeof aml === "object") {
+    if (typeof aml.total_hits === "number" && aml.total_hits > 0) return "hit";
+    const st = String(aml.status ?? "").toLowerCase();
+    if (!st) return "unknown";
+    return AML_CLEAR.has(st) ? "clear" : "hit";
+  }
+
+  return "unknown";
+}
+
+/** Whether the workflow that produced this decision included AML screening. */
+function expectedAml(decision: unknown): boolean {
+  const features = (decision as { features?: unknown })?.features;
+  if (Array.isArray(features)) return features.some((f) => String(f).toUpperCase() === "AML");
+  if (typeof features === "string") return features.toUpperCase().includes("AML");
+  return false;
 }
 
 /**
@@ -84,7 +114,17 @@ export async function applyDiditResult(
   let kyc: KycStatus | null = null;
   if (status === "Declined") kyc = "REJECTED";
   else if (status === "In Review") kyc = "REVIEW";
-  else if (status === "Approved") kyc = hasAmlHit(decision) ? "REVIEW" : "APPROVED";
+  else if (status === "Approved") {
+    // An AML result we can't read is not a clear one. If the workflow screened for
+    // sanctions/PEP and we can't prove the user came back clean, send it to a human
+    // rather than auto-approving them onto a live exchange.
+    const aml = amlVerdict(decision);
+    if (aml === "hit") kyc = "REVIEW";
+    else if (aml === "unknown" && expectedAml(decision)) {
+      console.warn(`[didit] AML ran but the verdict was unreadable (session ${sessionId}) — routing to REVIEW`);
+      kyc = "REVIEW";
+    } else kyc = "APPROVED";
+  }
   // Abandoned / Resubmitted / unknown → leave the user PENDING so they can retry.
   if (!kyc) return;
 

@@ -22,6 +22,15 @@ export async function POST(req: NextRequest) {
   } catch {
     return Response.json({ error: "Invalid payload" }, { status: 400 });
   }
+  // Record the envelope SHAPE only, never values — this payload carries identity
+  // data. Lets us confirm the decision parsing against what Didit actually sends
+  // now that sessions run on the v2 API, without waiting for a support answer.
+  const decisionKeys =
+    evt.decision && typeof evt.decision === "object"
+      ? Object.keys(evt.decision as Record<string, unknown>).join(",")
+      : String(evt.decision);
+  console.info(`[didit-webhook] shape keys=${Object.keys(evt).join(",")} decision=${decisionKeys}`);
+
   // Only status events carry a session_id + status; ack anything else.
   if (!evt.session_id || !evt.status) return Response.json({ ok: true });
 
