@@ -2,7 +2,7 @@ import { LedgerType, Prisma, type P2POrderStatus, type P2PAd as P2PAdRow } from 
 import { prisma } from "@/lib/db";
 import { getExchange } from "@/lib/exchange";
 import { withLedger, lock, unlock, credit, settleLocked } from "@/lib/ledger";
-import { ensureP2PAds } from "@/lib/p2p-seed";
+import { ensureP2PAds, demoAdsEnabled } from "@/lib/p2p-seed";
 import type {
   CreateP2POrderInput,
   OrderSide,
@@ -98,6 +98,9 @@ export async function listAds(viewerId: string | null, filter?: P2PAdFilter): Pr
   const where: Prisma.P2PAdWhereInput = {
     active: true,
     available: { gt: 0 },
+    // Belt and braces with the create-time check: unbacked ads are not listed
+    // either, so they cannot be reached even by a stale ad id.
+    ...(demoAdsEnabled() ? {} : { advertiserId: { not: null } }),
     ...(filter?.side ? { side: filter.side } : {}),
     ...(filter?.asset ? { asset: filter.asset } : {}),
     ...(filter?.fiat ? { fiat: filter.fiat } : {}),
@@ -235,6 +238,12 @@ export async function createP2POrder(input: CreateP2POrderInput): Promise<P2POrd
     const ad = await tx.p2PAd.findUnique({ where: { id: adId } });
     if (!ad || !ad.active) throw new Error("Advertisement not found");
     if (ad.advertiserId === userId) throw new Error("You can't take your own ad");
+    // No advertiser means no counterparty and no escrow behind the crypto. Such
+    // an ad can only be a leftover demo row, and trading against it would credit
+    // a buyer from nothing.
+    if (!ad.advertiserId && !demoAdsEnabled()) {
+      throw new Error("Advertisement not found");
+    }
 
     const price = Number(ad.price);
     if (fiatAmount < Number(ad.minLimit) || fiatAmount > Number(ad.maxLimit)) {
@@ -339,18 +348,21 @@ export async function actP2POrder(
     const amount = Number(o.assetAmount);
     const ref = { type: LedgerType.P2P, refId: o.id, memo: `P2P ${action} ${o.asset}` };
 
-    // The actor's role in this order. Real two-party trades enforce buyer-marks-
-    // paid / seller-releases; mock ads (no advertiser) let the taker drive both
-    // sides via the demo simulation control.
+    // The actor's role in this order.
+    //
+    // Enforcement used to be skipped when the ad had no advertiser, so that the
+    // demo ads could be driven from one side. That exemption was the hole: with
+    // no advertiser, RELEASE credits the buyer and settles nothing, so a taker
+    // who could call both MARK_PAID and RELEASE minted crypto out of nothing.
+    // Roles are now enforced for every order without exception.
     const isAdvertiser = o.advertiserId === userId && o.userId !== userId;
     const actorRole: "buyer" | "seller" = isAdvertiser
       ? o.takerRole === "buyer"
         ? "seller"
         : "buyer"
       : (o.takerRole as "buyer" | "seller");
-    const enforced = o.advertiserId != null;
     const requireRole = (role: "buyer" | "seller") => {
-      if (enforced && actorRole !== role) throw new Error(`Only the ${role} can do this.`);
+      if (actorRole !== role) throw new Error(`Only the ${role} can do this.`);
     };
 
     let status: P2POrderStatus;

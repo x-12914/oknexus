@@ -152,6 +152,16 @@ export async function runHealthChecks(ctx: HealthContext = {}): Promise<CheckRes
     }),
   );
 
+  // An active ad with no advertiser has no escrow behind it. Code now refuses
+  // to trade against one, but the row existing at all means a demo seed ran
+  // somewhere it shouldn't have, and that is worth knowing immediately.
+  checks.push(
+    check("p2p:unbacked-ads", "critical", "Unbacked P2P ads are live", async () => {
+      const n = await prisma.p2PAd.count({ where: { active: true, advertiserId: null } });
+      return n > 0 ? `${n} active ad(s) have no advertiser backing them` : null;
+    }),
+  );
+
   return Promise.all(checks);
 }
 

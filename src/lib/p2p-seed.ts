@@ -59,9 +59,21 @@ const ADS: SeedAd[] = [
 
 let seeded = false;
 
+/**
+ * Whether the demo marketplace ads exist.
+ *
+ * These ads have no advertiser, which used to mean the taker could drive both
+ * sides of the trade. Alongside a live withdrawal rail that is a money printer,
+ * so they are off unless explicitly enabled — the same rule as the demo balance
+ * seed and the simulated ramp.
+ */
+export function demoAdsEnabled(): boolean {
+  return process.env.ENABLE_P2P_DEMO_ADS === "true";
+}
+
 /** Insert the house-liquidity ads once per boot (idempotent upsert by id). */
 export async function ensureP2PAds(): Promise<void> {
-  if (seeded) return;
+  if (seeded || !demoAdsEnabled()) return;
   await prisma.$transaction(
     ADS.map((a) =>
       prisma.p2PAd.upsert({
