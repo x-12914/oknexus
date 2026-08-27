@@ -28,6 +28,7 @@ import type {
   Ticker,
 } from "@/lib/exchange/types";
 import type { Portfolio, LedgerActivity } from "@/lib/wallet-types";
+import type { MarketRow } from "@/app/api/markets/overview/route";
 import type { NotificationView } from "@/lib/notification-types";
 import type { Analytics } from "@/lib/analytics-types";
 import type { PriceAlertView } from "@/lib/price-alert-types";
@@ -174,6 +175,11 @@ export const api = {
         needs2FA: boolean;
         limit: { limitUsd: number; usedUsd: number; remainingUsd: number } | null;
       }>(r),
+    ),
+
+  marketsOverview: () =>
+    fetch("/api/markets/overview", { cache: "no-store" }).then((r) =>
+      j<{ rows: MarketRow[] }>(r),
     ),
 
   markets: () =>
