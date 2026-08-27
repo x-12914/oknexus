@@ -34,6 +34,15 @@ interface CgMarket {
 
 let cache: { expires: number; byId: Map<string, CgMarket> } | undefined;
 
+/**
+ * Back off hard on 429.
+ *
+ * The demo tier allows 10,000 calls a month. Once the quota is gone every
+ * further request is wasted and the connector silently falls through to Binance
+ * anyway, so stop asking for an hour rather than hammering a closed door.
+ */
+let rateLimitedUntil = 0;
+
 function cgHeaders(): Record<string, string> | undefined {
   const key = process.env.COINGECKO_API_KEY;
   if (!key) return undefined;
@@ -48,7 +57,13 @@ async function fetchMarkets(): Promise<Map<string, CgMarket>> {
   if (cache && cache.expires > now) return cache.byId;
   const ids = Object.values(CG_ID).join(",");
   const url = `${CG_BASE}/coins/markets?vs_currency=usd&ids=${ids}&price_change_percentage=24h&per_page=250`;
+  if (now < rateLimitedUntil) throw new Error("CoinGecko rate-limited; backing off");
   const res = await fetch(url, { cache: "no-store", headers: cgHeaders() });
+  if (res.status === 429) {
+    rateLimitedUntil = now + 60 * 60 * 1000;
+    console.warn("[coingecko] quota exhausted — backing off for an hour, serving Binance");
+    throw new Error("CoinGecko HTTP 429");
+  }
   if (!res.ok) throw new Error(`CoinGecko HTTP ${res.status}`);
   const arr = (await res.json()) as CgMarket[];
   const byId = new Map(arr.map((m) => [m.id, m]));

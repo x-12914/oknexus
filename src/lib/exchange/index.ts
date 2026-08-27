@@ -7,10 +7,11 @@ let cached: ExchangeConnector | undefined;
 
 export function getExchange(): ExchangeConnector {
   if (cached) return cached;
-  // Prices from CoinGecko when its key is set (order book/tape/candles still from
-  // Binance, with a mock fallback). Override with EXCHANGE_CONNECTOR=mock|binance|coingecko.
-  const id =
-    process.env.EXCHANGE_CONNECTOR ?? (process.env.COINGECKO_API_KEY ? "coingecko" : "binance");
+  // Binance by default. CoinGecko's demo tier allows 10,000 calls a MONTH, which
+  // an 8-second price cache exhausts in under a day — so holding a CoinGecko key
+  // is no longer reason enough to route prices through it. Opt in explicitly
+  // with EXCHANGE_CONNECTOR=coingecko, and only on a paid tier.
+  const id = process.env.EXCHANGE_CONNECTOR ?? "binance";
   switch (id) {
     case "mock":
       cached = new MockExchangeConnector();

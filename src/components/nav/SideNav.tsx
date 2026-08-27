@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Receipt,
+  ScrollText,
   LineChart,
   CandlestickChart,
   ArrowLeftRight,
@@ -24,6 +25,7 @@ import { Logo } from "@/components/brand/Logo";
 export const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/wallet", label: "Wallet", icon: Wallet },
+  { href: "/orders", label: "Orders", icon: ScrollText },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/markets", label: "Markets", icon: LineChart },
   { href: "/trade/BTC-USDT", label: "Spot Trading", icon: CandlestickChart, match: "/trade" },
