@@ -8,6 +8,7 @@ import {
   listAllAds,
 } from "@/lib/admin";
 import { listAudit } from "@/lib/audit";
+import { reconcileAll } from "@/lib/custody/reconcile";
 import { listPendingApprovals } from "@/lib/custody/withdrawals";
 
 export async function GET(req: NextRequest) {
@@ -27,6 +28,8 @@ export async function GET(req: NextRequest) {
       return Response.json({ ads: await listAllAds() });
     case "approvals":
       return Response.json({ approvals: await listPendingApprovals() });
+    case "reserves":
+      return Response.json(await reconcileAll());
     case "audit":
       return Response.json({ audit: await listAudit() });
     default:

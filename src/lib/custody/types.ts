@@ -46,6 +46,14 @@ export interface ChainAdapter {
    * estimate rather than throwing — a fee lookup must not break the page.
    */
   estimateNetworkFee(symbol: string): Promise<number>;
+  /**
+   * On-chain balance of `address` for `symbol`, in whole units.
+   *
+   * Needed to reconcile what we actually custody against what the ledger says
+   * we owe. Returns 0 rather than throwing when the address or asset can't be
+   * read — a reconciliation pass should report a gap, not crash.
+   */
+  getBalance(address: string, symbol: string): Promise<number>;
   /** Whether `address` is a valid destination on this chain. */
   validateAddress(address: string): boolean;
   /** Mined status of a broadcast tx, used to confirm withdrawals. */

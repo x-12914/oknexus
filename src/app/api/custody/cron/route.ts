@@ -3,6 +3,7 @@ import { ALL_CHAINS } from "@/lib/custody/registry";
 import { scanChain } from "@/lib/custody/scan";
 import { sweepChain } from "@/lib/custody/sweep";
 import { processWithdrawals } from "@/lib/custody/withdrawals";
+import { reconcileAll } from "@/lib/custody/reconcile";
 import { processStopTriggers } from "@/lib/orders";
 import { processPriceAlerts } from "@/lib/price-alerts";
 import { accrueStakes } from "@/lib/earn";
@@ -43,5 +44,9 @@ export async function POST(req: NextRequest) {
       chains[chain] = { error: (e as Error).message };
     }
   }
-  return Response.json({ ok: true, stops, alerts, staking, payouts, float, chains });
+  // Held-vs-owed across every enabled chain. Reported every pass so a shortfall
+  // shows up in monitoring rather than in a support ticket.
+  const reconcile = await reconcileAll().catch((e) => ({ error: (e as Error).message }));
+
+  return Response.json({ ok: true, stops, alerts, staking, payouts, float, reconcile, chains });
 }

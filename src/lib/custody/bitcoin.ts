@@ -170,6 +170,19 @@ export class BitcoinAdapter implements ChainAdapter {
     }
   }
 
+  async getBalance(address: string, symbol: string): Promise<number> {
+    if (symbol !== this.config.nativeSymbol) return 0;
+    try {
+      const d = await fetch(`${this.base}/address/${address}`).then((r) => r.json());
+      // Confirmed balance only: funded minus spent, both in satoshis.
+      const stats = d?.chain_stats ?? {};
+      const sats = Number(stats.funded_txo_sum ?? 0) - Number(stats.spent_txo_sum ?? 0);
+      return Math.max(0, sats) / SATS;
+    } catch {
+      return 0;
+    }
+  }
+
   validateAddress(address: string): boolean {
     try {
       bitcoin.address.toOutputScript(address, NETWORK);

@@ -312,6 +312,26 @@ export class EvmAdapter implements ChainAdapter {
     }
   }
 
+  async getBalance(address: string, symbol: string): Promise<number> {
+    try {
+      if (symbol === this.config.nativeSymbol) {
+        const wei = await this.pub().getBalance({ address: address as `0x${string}` });
+        return Number(wei) / 1e18;
+      }
+      const token = this.config.tokens.find((t) => t.symbol === symbol);
+      if (!token) return 0;
+      const raw = (await this.pub().readContract({
+        address: token.address as `0x${string}`,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [address as `0x${string}`],
+      })) as bigint;
+      return Number(raw) / 10 ** token.decimals;
+    } catch {
+      return 0;
+    }
+  }
+
   validateAddress(address: string): boolean {
     return isAddress(address);
   }

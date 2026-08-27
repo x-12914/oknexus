@@ -152,6 +152,16 @@ export class SolanaAdapter implements ChainAdapter {
     return 5000 / LAMPORTS_PER_SOL;
   }
 
+  async getBalance(address: string, symbol: string): Promise<number> {
+    if (symbol !== this.config.nativeSymbol) return 0;
+    try {
+      const lamports = await this.conn().getBalance(new PublicKey(address));
+      return lamports / LAMPORTS_PER_SOL;
+    } catch {
+      return 0;
+    }
+  }
+
   validateAddress(address: string): boolean {
     try {
       return !!new PublicKey(address);
