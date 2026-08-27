@@ -28,4 +28,9 @@ export const WALLET_ASSETS: {
   { symbol: "BNB", name: "BNB", isFiat: false, decimals: 8, seed: 0 },
   { symbol: "XRP", name: "XRP", isFiat: false, decimals: 6, seed: 0 },
   { symbol: "ADA", name: "Cardano", isFiat: false, decimals: 6, seed: 0 },
+  // The ledger's first fiat asset. Two decimals because naira has kobo and
+  // nothing smaller — carrying eight would invent precision the banking rail
+  // cannot settle. Never seeded: a fiat balance may only come from money that
+  // actually arrived.
+  { symbol: "NGN", name: "Nigerian Naira", isFiat: true, decimals: 2, seed: 0 },
 ];

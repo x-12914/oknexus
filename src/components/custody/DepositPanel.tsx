@@ -10,7 +10,7 @@ import { AssetCoin } from "@/components/swap/AssetSelect";
 import { QrCode } from "@/components/custody/QrCode";
 import type { DepositAddressInfo } from "@/lib/custody-types";
 
-export function DepositPanel() {
+export function DepositPanel({ headerSlot }: { headerSlot?: React.ReactNode }) {
   const { data: config } = usePolling(() => api.custodyConfig(), 60000, []);
   const { data: history } = usePolling(() => api.custodyHistory(), 8000, []);
   const chains = config?.chains ?? [];
@@ -65,6 +65,7 @@ export function DepositPanel() {
         <ArrowLeft className="h-4 w-4" /> Back to wallet
       </Link>
       <h1 className="text-xl font-semibold mb-3">Deposit crypto</h1>
+      {headerSlot && <div className="mb-4">{headerSlot}</div>}
 
       {/* Network picker */}
       <div className="mb-3">

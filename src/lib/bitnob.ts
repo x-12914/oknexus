@@ -272,3 +272,100 @@ export async function getPayout(id: string): Promise<BitnobResponse<unknown>> {
 export async function listPayouts(): Promise<BitnobResponse<unknown>> {
   return bitnobRequest("GET", "/api/payouts");
 }
+
+// ---------- Collections (fiat in) ----------
+
+export interface BitnobCustomer {
+  id: string;
+  email: string;
+  customer_type: string;
+  kyc_status?: string;
+  first_name?: string;
+  last_name?: string;
+}
+
+/**
+ * Fields a customer must carry before an NGN account can be attached.
+ *
+ * Creating the customer itself needs only type + email; the bank details are
+ * enforced at virtual-account time, with an error naming exactly what's absent.
+ * Sending them upfront turns that into one round trip instead of two.
+ */
+export interface BitnobCustomerInput {
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone_number: string;
+  /** ISO date, YYYY-MM-DD. */
+  date_of_birth: string;
+  /** Nigerian Bank Verification Number. Passed through, never stored by us. */
+  bvn: string;
+}
+
+export async function createCustomer(
+  input: BitnobCustomerInput,
+): Promise<BitnobResponse<{ data?: BitnobCustomer }>> {
+  return bitnobRequest("POST", "/api/customers", { customer_type: "individual", ...input });
+}
+
+export async function updateCustomer(
+  id: string,
+  input: Partial<BitnobCustomerInput>,
+): Promise<BitnobResponse<{ data?: BitnobCustomer }>> {
+  return bitnobRequest("PATCH", `/api/customers/${id}`, input);
+}
+
+export async function findCustomerByEmail(email: string): Promise<BitnobCustomer | null> {
+  const r = await bitnobRequest<{ data?: { customers?: BitnobCustomer[] } }>(
+    "GET",
+    "/api/customers",
+  );
+  const list = r.data?.data?.customers ?? [];
+  return list.find((c) => c.email?.toLowerCase() === email.toLowerCase()) ?? null;
+}
+
+export interface BitnobVirtualAccount {
+  id: string;
+  account_number: string;
+  account_name: string;
+  bank_name: string;
+  currency: string;
+  reference: string;
+}
+
+/** NGN is the only currency the provider issues virtual accounts in. */
+export async function createVirtualAccount(
+  customerId: string,
+  reference: string,
+): Promise<BitnobResponse<{ data?: BitnobVirtualAccount }>> {
+  return bitnobRequest("POST", "/api/virtual-accounts", {
+    currency: "NGN",
+    customer_id: customerId,
+    reference,
+  });
+}
+
+export interface BitnobTransaction {
+  transaction_id: string;
+  account_number: string | null;
+  currency: string;
+  /** PAYOUT | DEPOSIT_CONFIRMED | … */
+  type: string;
+  /** SETTLED once the money is final. Anything else must not be credited. */
+  state: string;
+  /** "Credit" | "Debit" */
+  side: string;
+  amount: number | string;
+  fee: number | string;
+  reference: string | null;
+  value_date: string | null;
+  created_at: string;
+}
+
+export async function listTransactions(): Promise<BitnobTransaction[]> {
+  const r = await bitnobRequest<{ data?: { transactions?: BitnobTransaction[] } }>(
+    "GET",
+    "/api/transactions",
+  );
+  return r.data?.data?.transactions ?? [];
+}

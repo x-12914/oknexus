@@ -143,6 +143,15 @@ export async function runHealthChecks(ctx: HealthContext = {}): Promise<CheckRes
     }),
   );
 
+  // Naira that arrived but could not be assigned to a user. Someone's money is
+  // sitting in limbo, and only a person can resolve it.
+  checks.push(
+    check("collections:held", "critical", "Unattributed naira deposits", async () => {
+      const held = await prisma.fiatDeposit.count({ where: { status: { in: ["RECEIVED", "HELD"] } } });
+      return held > 0 ? `${held} deposit(s) received but not credited to any account` : null;
+    }),
+  );
+
   return Promise.all(checks);
 }
 

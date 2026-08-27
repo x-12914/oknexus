@@ -8,6 +8,7 @@ import { processStopTriggers } from "@/lib/orders";
 import { processPriceAlerts } from "@/lib/price-alerts";
 import { accrueStakes } from "@/lib/earn";
 import { reconcilePayouts, checkPayoutFloat } from "@/lib/ramp/payouts";
+import { pollCollections } from "@/lib/ramp/collections";
 import { turnkeyConfigured } from "@/lib/turnkey";
 import { monitor } from "@/lib/monitoring";
 
@@ -27,13 +28,16 @@ export async function POST(req: NextRequest) {
   // under the custody gate below: it needs the payout provider, not a chain.
   const payouts = await reconcilePayouts().catch((e) => ({ error: (e as Error).message }));
   const float = await checkPayoutFloat().catch((e) => ({ error: (e as Error).message }));
+  // Naira arriving over the bank rail. Runs alongside payouts rather than under
+  // the custody gate: collections need the provider, not a chain.
+  const collections = await pollCollections().catch((e) => ({ error: (e as Error).message }));
 
   // Deposit scanning works under either custody backend Turnkey (addresses only)
   // or the HD seed. Only skip when neither is configured.
   if (!turnkeyConfigured() && !process.env.CUSTODY_MNEMONIC) {
     const health = await monitor().catch((e) => ({ error: (e as Error).message }));
     return Response.json({
-      ok: true, stops, alerts, staking, payouts, float, health,
+      ok: true, stops, alerts, staking, payouts, float, collections, health,
       reason: "custody not configured",
     });
   }
@@ -59,5 +63,7 @@ export async function POST(req: NextRequest) {
     "shortfalls" in reconcile ? { reconcile } : {},
   ).catch((e) => ({ error: (e as Error).message }));
 
-  return Response.json({ ok: true, stops, alerts, staking, payouts, float, reconcile, health, chains });
+  return Response.json({
+    ok: true, stops, alerts, staking, payouts, float, collections, reconcile, health, chains,
+  });
 }

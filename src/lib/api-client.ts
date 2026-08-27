@@ -57,6 +57,13 @@ import type {
   AdminReserves,
 } from "@/lib/admin-types";
 
+export interface NgnAccountView {
+  accountNumber: string;
+  accountName: string;
+  bankName: string;
+  createdAt: number;
+}
+
 async function j<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
   return (await res.json()) as T;
@@ -435,6 +442,23 @@ export const api = {
     ),
   adminAds: () =>
     fetch("/api/admin/data?view=ads", { cache: "no-store" }).then((r) => j<{ ads: AdminAd[] }>(r)),
+
+  ngnAccount: () =>
+    fetch("/api/ramp/ngn/account", { cache: "no-store" }).then((r) =>
+      j<{ account: NgnAccountView | null; available: boolean }>(r),
+    ),
+  ngnProvision: (body: {
+    firstName: string;
+    lastName: string;
+    phone: string;
+    dateOfBirth: string;
+    bvn: string;
+  }) =>
+    fetch("/api/ramp/ngn/account", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }).then((r) => j<{ account: NgnAccountView }>(r)),
 
   adminHealth: () =>
     fetch("/api/admin/data?view=health", { cache: "no-store" }).then((r) => j<AdminHealth>(r)),
