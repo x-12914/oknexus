@@ -689,3 +689,25 @@ model ApiKey {
 
   @@index([userId])
 }
+
+/// Current state of one monitored condition.
+///
+/// One row per check, updated in place. Alerts fire on TRANSITIONS — healthy to
+/// firing, and back again — because a check that notifies every minute while a
+/// condition persists is noise, and noise is how the CoinGecko outage went
+/// unnoticed for weeks.
+model SystemAlert {
+  /// Stable check id, e.g. "provider:bitnob" or "float:low".
+  key        String    @id
+  severity   String
+  title      String
+  detail     String
+  firing     Boolean   @default(true)
+  firstSeen  DateTime  @default(now())
+  lastSeen   DateTime  @default(now())
+  resolvedAt DateTime?
+  /// Last time we told anyone, so a long outage re-notifies rather than going quiet.
+  notifiedAt DateTime?
+
+  @@index([firing, severity])
+}

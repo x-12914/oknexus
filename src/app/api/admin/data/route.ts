@@ -10,6 +10,7 @@ import {
 import { listAudit } from "@/lib/audit";
 import { reconcileAll } from "@/lib/custody/reconcile";
 import { listPendingApprovals } from "@/lib/custody/withdrawals";
+import { listAlerts, healthReport } from "@/lib/monitoring";
 
 export async function GET(req: NextRequest) {
   const adminId = await requireAdmin();
@@ -30,6 +31,8 @@ export async function GET(req: NextRequest) {
       return Response.json({ approvals: await listPendingApprovals() });
     case "reserves":
       return Response.json(await reconcileAll());
+    case "health":
+      return Response.json({ alerts: await listAlerts(), health: await healthReport() });
     case "audit":
       return Response.json({ audit: await listAudit() });
     default:

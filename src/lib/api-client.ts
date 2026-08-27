@@ -53,6 +53,8 @@ import type {
   AdminAd,
   AdminActionBody,
   KycInfo,
+  AdminHealth,
+  AdminReserves,
 } from "@/lib/admin-types";
 
 async function j<T>(res: Response): Promise<T> {
@@ -433,6 +435,11 @@ export const api = {
     ),
   adminAds: () =>
     fetch("/api/admin/data?view=ads", { cache: "no-store" }).then((r) => j<{ ads: AdminAd[] }>(r)),
+
+  adminHealth: () =>
+    fetch("/api/admin/data?view=health", { cache: "no-store" }).then((r) => j<AdminHealth>(r)),
+  adminReserves: () =>
+    fetch("/api/admin/data?view=reserves", { cache: "no-store" }).then((r) => j<AdminReserves>(r)),
 
   adminAction: (body: AdminActionBody) =>
     fetch("/api/admin/action", {

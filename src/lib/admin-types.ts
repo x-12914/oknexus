@@ -78,3 +78,32 @@ export type AdminActionBody =
   | { type: "kyc"; userId: string; value: string }
   | { type: "dispute"; orderId: string; value: "release" | "refund" }
   | { type: "deactivateAd"; adId: string };
+
+export interface AdminAlert {
+  key: string;
+  severity: string;
+  title: string;
+  detail: string;
+  firing: boolean;
+  firstSeen: number;
+  lastSeen: number;
+  resolvedAt: number | null;
+}
+
+export interface AdminHealth {
+  alerts: AdminAlert[];
+  health: {
+    ok: boolean;
+    lastCronAt: number | null;
+    cronStale: boolean;
+    critical: { key: string; title: string; detail: string; since: number }[];
+    warnings: { key: string; title: string; detail: string; since: number }[];
+  };
+}
+
+export interface AdminReserves {
+  checked: number;
+  shortfalls: { chain: string; symbol: string; heldOnChain: number; owedToUsers: number }[];
+  heldOnChain: number;
+  owedToUsers: number;
+}

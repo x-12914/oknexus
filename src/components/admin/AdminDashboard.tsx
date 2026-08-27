@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import type {
@@ -11,9 +11,11 @@ import type {
   AdminLedgerRow,
   AdminAd,
   AdminActionBody,
+  AdminHealth,
+  AdminReserves,
 } from "@/lib/admin-types";
 
-const TABS = ["Overview", "Users", "Disputes", "Transactions", "Ads"] as const;
+const TABS = ["Overview", "Health", "Users", "Disputes", "Transactions", "Ads"] as const;
 type Tab = (typeof TABS)[number];
 
 export function AdminDashboard() {
@@ -39,6 +41,7 @@ export function AdminDashboard() {
         ))}
       </div>
       {tab === "Overview" && <OverviewTab />}
+      {tab === "Health" && <HealthTab />}
       {tab === "Users" && <UsersTab />}
       {tab === "Disputes" && <DisputesTab />}
       {tab === "Transactions" && <LedgerTab />}
@@ -414,6 +417,182 @@ function AdsTab() {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function ago(ts: number) {
+  const mins = Math.round((Date.now() - ts) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  return hrs < 24 ? `${hrs}h ago` : `${Math.round(hrs / 24)}d ago`;
+}
+
+/**
+ * System health.
+ *
+ * Exists because every provider on this platform has a fallback, so an outage
+ * degrades quietly instead of failing loudly. This is the page that makes
+ * "quietly" visible.
+ */
+function HealthTab() {
+  const [d, setD] = useState<AdminHealth | null>(null);
+  const [reserves, setReserves] = useState<AdminReserves | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    setBusy(true);
+    try {
+      const [h, r] = await Promise.all([
+        api.adminHealth(),
+        api.adminReserves().catch(() => null),
+      ]);
+      setD(h);
+      setReserves(r);
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      load().catch(() => {});
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [load]);
+
+  if (!d) return <Spinner />;
+
+  const green = d.health.ok && !d.health.cronStale;
+  const firing = d.alerts.filter((a) => a.firing);
+  const recent = d.alerts.filter((a) => !a.firing).slice(0, 10);
+
+  return (
+    <div className="space-y-5">
+      <div
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4",
+          green
+            ? "border-[var(--color-up)]/40 bg-[var(--color-up-bg)]"
+            : "border-[var(--color-down)]/40 bg-[var(--color-down-bg)]",
+        )}
+      >
+        <div className="flex items-center gap-3">
+          {green ? (
+            <CheckCircle2 className="h-5 w-5 text-[var(--color-up)]" />
+          ) : (
+            <AlertTriangle className="h-5 w-5 text-[var(--color-down)]" />
+          )}
+          <div>
+            <p className="text-sm font-semibold">
+              {green ? "All systems operational" : "Attention needed"}
+            </p>
+            <p className="text-xs text-[var(--color-muted)]">
+              {d.health.cronStale
+                ? "Background jobs are not running."
+                : `Background jobs last ran ${d.health.lastCronAt ? ago(d.health.lastCronAt) : "never"}.`}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => void load()}
+          disabled={busy}
+          className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs disabled:opacity-50"
+        >
+          <RefreshCw className={cn("h-3.5 w-3.5", busy && "animate-spin")} /> Refresh
+        </button>
+      </div>
+
+      {firing.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold">Firing</h2>
+          {firing.map((a) => (
+            <div
+              key={a.key}
+              className="rounded-xl border border-[var(--color-border)] p-4"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={cn(
+                    "rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase",
+                    a.severity === "critical"
+                      ? "bg-[var(--color-down-bg)] text-[var(--color-down)]"
+                      : "bg-[var(--color-surface-2)] text-[var(--color-muted)]",
+                  )}
+                >
+                  {a.severity}
+                </span>
+                <span className="text-sm font-medium">{a.title}</span>
+                <span className="ml-auto text-xs text-[var(--color-muted)]">
+                  since {ago(a.firstSeen)}
+                </span>
+              </div>
+              {a.detail && (
+                <p className="mt-1.5 text-xs text-[var(--color-muted)]">{a.detail}</p>
+              )}
+              <p className="mt-1 font-mono text-[10px] text-[var(--color-muted)]">{a.key}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {reserves && (
+        <div className="rounded-xl border border-[var(--color-border)] p-4">
+          <h2 className="text-sm font-semibold">Reserves</h2>
+          <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+            {[
+              ["Assets checked", reserves.checked.toLocaleString()],
+              ["Held on chain", reserves.heldOnChain.toLocaleString()],
+              ["Owed to users", reserves.owedToUsers.toLocaleString()],
+            ].map(([label, val]) => (
+              <div key={label}>
+                <div className="text-lg font-semibold tabular-nums">{val}</div>
+                <div className="mt-0.5 text-xs text-[var(--color-muted)]">{label}</div>
+              </div>
+            ))}
+          </div>
+          <p
+            className={cn(
+              "mt-3 text-xs",
+              reserves.shortfalls.length === 0
+                ? "text-[var(--color-up)]"
+                : "text-[var(--color-down)]",
+            )}
+          >
+            {reserves.shortfalls.length === 0
+              ? "Fully backed — no shortfalls."
+              : `${reserves.shortfalls.length} shortfall(s): ` +
+                reserves.shortfalls
+                  .map((s) => `${s.chain}/${s.symbol} hold ${s.heldOnChain} owe ${s.owedToUsers}`)
+                  .join("; ")}
+          </p>
+        </div>
+      )}
+
+      {recent.length > 0 && (
+        <div>
+          <h2 className="mb-2 text-sm font-semibold">Recently resolved</h2>
+          <div className="rounded-xl border border-[var(--color-border)] divide-y divide-[var(--color-border)]">
+            {recent.map((a) => (
+              <div key={a.key} className="flex items-center gap-2 px-4 py-2.5 text-xs">
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[var(--color-up)]" />
+                <span className="truncate">{a.title}</span>
+                <span className="ml-auto shrink-0 text-[var(--color-muted)]">
+                  {a.resolvedAt ? ago(a.resolvedAt) : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {firing.length === 0 && recent.length === 0 && (
+        <p className="py-8 text-center text-sm text-[var(--color-muted)]">
+          No alerts have ever fired.
+        </p>
+      )}
     </div>
   );
 }

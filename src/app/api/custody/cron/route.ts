@@ -9,6 +9,7 @@ import { processPriceAlerts } from "@/lib/price-alerts";
 import { accrueStakes } from "@/lib/earn";
 import { reconcilePayouts, checkPayoutFloat } from "@/lib/ramp/payouts";
 import { turnkeyConfigured } from "@/lib/turnkey";
+import { monitor } from "@/lib/monitoring";
 
 // Driven by a system cron on the VPS (every ~minute) with a bearer secret.
 // Runs one deposit-scan + withdrawal-processing pass per chain. Idempotent, and
@@ -30,7 +31,11 @@ export async function POST(req: NextRequest) {
   // Deposit scanning works under either custody backend Turnkey (addresses only)
   // or the HD seed. Only skip when neither is configured.
   if (!turnkeyConfigured() && !process.env.CUSTODY_MNEMONIC) {
-    return Response.json({ ok: true, stops, alerts, staking, payouts, float, reason: "custody not configured" });
+    const health = await monitor().catch((e) => ({ error: (e as Error).message }));
+    return Response.json({
+      ok: true, stops, alerts, staking, payouts, float, health,
+      reason: "custody not configured",
+    });
   }
 
   const chains: Record<string, unknown> = {};
@@ -48,5 +53,11 @@ export async function POST(req: NextRequest) {
   // shows up in monitoring rather than in a support ticket.
   const reconcile = await reconcileAll().catch((e) => ({ error: (e as Error).message }));
 
-  return Response.json({ ok: true, stops, alerts, staking, payouts, float, reconcile, chains });
+  // Health checks last, so they observe the state this pass just produced. Given
+  // the reconciliation we already ran rather than repeating every on-chain read.
+  const health = await monitor(
+    "shortfalls" in reconcile ? { reconcile } : {},
+  ).catch((e) => ({ error: (e as Error).message }));
+
+  return Response.json({ ok: true, stops, alerts, staking, payouts, float, reconcile, health, chains });
 }
