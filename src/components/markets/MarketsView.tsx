@@ -131,7 +131,7 @@ export function MarketsView() {
                 <th className="px-4 py-3 text-right font-medium">24h</th>
                 <th className="hidden px-4 py-3 text-right font-medium sm:table-cell">24h high</th>
                 <th className="hidden px-4 py-3 text-right font-medium sm:table-cell">24h low</th>
-                <th className="px-4 py-3 text-right font-medium">Volume</th>
+                <th className="px-4 py-3 text-right font-medium">24h volume</th>
               </tr>
             </thead>
             <tbody>
@@ -175,8 +175,9 @@ export function MarketsView() {
                     <td className="hidden px-4 py-3 text-right text-[var(--color-muted)] sm:table-cell">
                       {money(r.low24h)}
                     </td>
+                    {/* Quote-denominated, so this is comparable across pairs. */}
                     <td className="px-4 py-3 text-right text-[var(--color-muted)]">
-                      {compact(r.volume24h)}
+                      {compact(r.volume24h)} {r.quote}
                     </td>
                   </tr>
                 );

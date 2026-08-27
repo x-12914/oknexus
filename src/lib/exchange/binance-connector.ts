@@ -21,6 +21,8 @@ interface BinanceTicker {
   highPrice: string;
   lowPrice: string;
   volume: string;
+  /** Volume denominated in the quote asset (USDT), which is what we report. */
+  quoteVolume: string;
   priceChangePercent: string;
 }
 interface BinanceTrade {
@@ -103,7 +105,9 @@ export class BinanceConnector extends MockExchangeConnector {
         ask: Number(d.askPrice),
         high24h: Number(d.highPrice),
         low24h: Number(d.lowPrice),
-        volume24h: Number(d.volume),
+        // quoteVolume, not volume: volume24h must mean the same thing whichever
+        // source answers, otherwise ranking markets by it is meaningless.
+        volume24h: Number(d.quoteVolume ?? d.volume),
         changePct24h: Number(d.priceChangePercent),
       };
     } catch {
