@@ -9,6 +9,9 @@ export async function GET() {
       chain: c.chain,
       label: chainLabel(c.chain),
       nativeSymbol: c.nativeSymbol,
+      // Passed through explicitly: the deposit screen picks its warning from
+      // this, and an undefined here silently means "mainnet" to the UI.
+      testnet: c.testnet,
       minConfirmations: c.minConfirmations,
       assets: [c.nativeSymbol, ...c.tokens.map((t) => t.symbol)],
     }));
