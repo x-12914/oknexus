@@ -49,3 +49,15 @@ export interface CustodyHistory {
   deposits: CustodyDeposit[];
   withdrawals: CustodyWithdrawal[];
 }
+
+/** A saved withdrawal destination. */
+export interface WhitelistEntry {
+  id: string;
+  chain: string;
+  address: string;
+  label: string;
+  activeFrom: number;
+  /** False while still inside the post-add waiting period. */
+  usable: boolean;
+  createdAt: number;
+}

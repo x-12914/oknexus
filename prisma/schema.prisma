@@ -53,6 +53,9 @@ model User {
   deposits         Deposit[]
   withdrawals      Withdrawal[]
   fiatPayouts      FiatPayout[]
+  withdrawalAddresses WithdrawalAddress[]
+  /// When on, withdrawals may only go to whitelisted addresses.
+  whitelistOnly    Boolean  @default(false)
 }
 
 enum UserRole {
@@ -635,4 +638,26 @@ model AuditLog {
   @@index([createdAt])
   @@index([actorId, createdAt])
   @@index([targetType, targetId])
+}
+
+/// Saved withdrawal destinations.
+///
+/// Two controls in one: restricting withdrawals to known addresses, and a delay
+/// before a newly added one can be used. The delay is the part that actually
+/// defeats session hijacking — an attacker who gets in can add an address, but
+/// cannot drain to it before the owner notices.
+model WithdrawalAddress {
+  id        String   @id @default(cuid())
+  userId    String
+  chain     String
+  address   String
+  label     String
+  /// Usable only from this moment. Set on creation, never shortened.
+  activeFrom DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chain, address])
+  @@index([userId])
 }

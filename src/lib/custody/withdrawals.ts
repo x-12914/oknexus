@@ -4,6 +4,7 @@ import { withLedger, lock, unlock, settleLocked, quantize } from "@/lib/ledger";
 import { notify } from "@/lib/notifications";
 import { getExchange } from "@/lib/exchange";
 import { getChainAdapter } from "./registry";
+import { assertWithdrawalAllowed } from "./whitelist";
 import { WITHDRAWAL_MARGIN_PCT } from "@/lib/fees";
 
 // Floor per asset, used only when the chain can't be reached or can't price
@@ -164,6 +165,8 @@ export async function requestWithdrawal(
     throw new Error(`Withdrawals for ${symbol} aren't supported on ${chain}`);
   }
   if (!adapter.validateAddress(toAddress)) throw new Error("Invalid destination address");
+  // Enforced here, not in the route, so no caller can skip it.
+  await assertWithdrawalAllowed(userId, chain, toAddress);
   amount = quantize(amount);
   if (!(amount > 0)) throw new Error("Amount must be positive");
 

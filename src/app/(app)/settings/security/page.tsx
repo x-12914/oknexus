@@ -8,6 +8,7 @@ import { LoginHistory } from "@/components/security/LoginHistory";
 import { SignOutAllCard } from "@/components/security/SignOutAllCard";
 import { PasswordManagementCard } from "@/components/security/PasswordManagementCard";
 import { ConnectedAccountsCard } from "@/components/security/ConnectedAccountsCard";
+import { WithdrawalWhitelistCard } from "@/components/security/WithdrawalWhitelistCard";
 
 export default async function SecurityPage() {
   const u = await sessionUser();
@@ -52,13 +53,7 @@ export default async function SecurityPage() {
             hasPassword={Boolean(user?.passwordHash)}
           />
 
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/40 p-5">
-            <h3 className="font-medium text-[var(--color-foreground)]">Withdrawal Whitelist</h3>
-            <p className="mt-1 text-xs text-[var(--color-muted)]">Restrict withdrawals to verified addresses only.</p>
-            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-1.5 text-xs text-[var(--color-muted)]">
-              Coming soon
-            </div>
-          </div>
+          <WithdrawalWhitelistCard />
 
           <LoginHistory
             events={events.map((e) => ({
