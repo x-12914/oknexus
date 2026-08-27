@@ -106,10 +106,20 @@ export async function getMerchantStatsFor(
   return out;
 }
 
-/** Overlay live stats onto a stored merchant blob, replacing whatever it claimed. */
+/**
+ * Rebuild a merchant from the stored blob plus live stats.
+ *
+ * Constructed field by field rather than spread: the stored JSON still carries
+ * keys from the old shape, including the invented `rating`, and spreading would
+ * keep leaking them through the API even though the type no longer declares
+ * them. Only these fields ever reach a client.
+ */
 export function withRealStats(merchant: P2PMerchant, stats: MerchantStats): P2PMerchant {
   return {
-    ...merchant,
+    id: merchant.id,
+    name: merchant.name,
+    online: merchant.online,
+    verified: merchant.verified,
     completedTrades: stats.completedTrades,
     completionRatePct: stats.completionRatePct,
     avgReleaseMinutes: stats.avgReleaseMinutes,
@@ -126,8 +136,9 @@ export function withRealStats(merchant: P2PMerchant, stats: MerchantStats): P2PM
  */
 export function asHouseMerchant(merchant: P2PMerchant): P2PMerchant {
   return {
-    ...merchant,
+    id: merchant.id,
     name: "OKNexus Liquidity",
+    online: merchant.online,
     completedTrades: 0,
     completionRatePct: null,
     avgReleaseMinutes: null,
