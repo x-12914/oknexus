@@ -1,4 +1,4 @@
-import { BadgeCheck, Star } from "lucide-react";
+import {BadgeCheck} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { P2PMerchant } from "@/lib/exchange/types";
 
@@ -35,14 +35,29 @@ export function MerchantBadge({
             <BadgeCheck className="h-4 w-4 text-[var(--color-accent)] shrink-0" />
           ) : null}
         </div>
+        {/* Only what we can actually evidence. A new advertiser is shown as new
+            rather than as 100% with a five-star rating, and the star rating is
+            gone entirely because there is no review mechanism behind it. */}
         <div className="flex items-center gap-1.5 text-xs text-[var(--color-muted)]">
-          <span>{merchant.completedTrades.toLocaleString()} trades</span>
-          <span>·</span>
-          <span>{merchant.completionRatePct}%</span>
-          <span className="inline-flex items-center gap-0.5">
-            <Star className="h-3 w-3 fill-current text-amber-400" />
-            {merchant.rating}
-          </span>
+          {merchant.isNew ? (
+            <span className="rounded bg-[var(--color-surface-2)] px-1.5 py-0.5">New trader</span>
+          ) : (
+            <>
+              <span>{merchant.completedTrades.toLocaleString()} trades</span>
+              {merchant.completionRatePct !== null && (
+                <>
+                  <span>·</span>
+                  <span>{merchant.completionRatePct}% completion</span>
+                </>
+              )}
+              {merchant.avgReleaseMinutes !== null && (
+                <>
+                  <span>·</span>
+                  <span>~{merchant.avgReleaseMinutes}m release</span>
+                </>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>

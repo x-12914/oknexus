@@ -5,13 +5,27 @@ import type { OrderSide, P2PMerchant } from "@/lib/exchange/types";
 // Seeded market-maker merchants + ads. These live in the DB alongside
 // user-created ads (advertiserId = null marks them as house liquidity).
 
+// House liquidity, not individuals. These carried invented histories
+// ("5,623 trades, 99.8%, 4.9 stars") shown to users as real track records.
+// They are now labelled for what they are, with no fabricated stats.
+const HOUSE = (id: string, name: string, online: boolean): P2PMerchant => ({
+  id,
+  name,
+  online,
+  completedTrades: 0,
+  completionRatePct: null,
+  avgReleaseMinutes: null,
+  isNew: false,
+  verified: true,
+});
+
 const M: Record<string, P2PMerchant> = {
-  m1: { id: "m1", name: "USDTBaron", online: true, completedTrades: 5623, completionRatePct: 99.8, avgReleaseMinutes: 2, rating: 4.9, verified: true },
-  m2: { id: "m2", name: "CryptoKingNG", online: true, completedTrades: 1240, completionRatePct: 98.5, avgReleaseMinutes: 5, rating: 4.8, verified: true },
-  m3: { id: "m3", name: "FastTrade_Wise", online: true, completedTrades: 890, completionRatePct: 99.2, avgReleaseMinutes: 3, rating: 4.9, verified: true },
-  m4: { id: "m4", name: "AlphaOTC", online: false, completedTrades: 2310, completionRatePct: 97.0, avgReleaseMinutes: 8, rating: 4.6, verified: true },
-  m5: { id: "m5", name: "SwiftPay", online: true, completedTrades: 452, completionRatePct: 95.5, avgReleaseMinutes: 6, rating: 4.5, verified: false },
-  m6: { id: "m6", name: "GreenExchange", online: false, completedTrades: 121, completionRatePct: 92.0, avgReleaseMinutes: 12, rating: 4.2, verified: false },
+  m1: HOUSE("m1", "OKNexus Liquidity", true),
+  m2: HOUSE("m2", "OKNexus Liquidity", true),
+  m3: HOUSE("m3", "OKNexus Liquidity", true),
+  m4: HOUSE("m4", "OKNexus Liquidity", false),
+  m5: HOUSE("m5", "OKNexus Liquidity", true),
+  m6: HOUSE("m6", "OKNexus Liquidity", false),
 };
 
 interface SeedAd {

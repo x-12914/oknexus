@@ -290,12 +290,12 @@ const P2P_PAYMENT_METHODS: P2PPaymentMethod[] = [
 ];
 
 const P2P_MERCHANTS: P2PMerchant[] = [
-  { id: "m1", name: "USDTBaron", online: true, completedTrades: 5623, completionRatePct: 99.8, avgReleaseMinutes: 2, rating: 4.9, verified: true },
-  { id: "m2", name: "CryptoKingNG", online: true, completedTrades: 1240, completionRatePct: 98.5, avgReleaseMinutes: 5, rating: 4.8, verified: true },
-  { id: "m3", name: "FastTrade_Wise", online: true, completedTrades: 890, completionRatePct: 99.2, avgReleaseMinutes: 3, rating: 4.9, verified: true },
-  { id: "m4", name: "AlphaOTC", online: false, completedTrades: 2310, completionRatePct: 97.0, avgReleaseMinutes: 8, rating: 4.6, verified: true },
-  { id: "m5", name: "SwiftPay", online: true, completedTrades: 452, completionRatePct: 95.5, avgReleaseMinutes: 6, rating: 4.5, verified: false },
-  { id: "m6", name: "GreenExchange", online: false, completedTrades: 121, completionRatePct: 92.0, avgReleaseMinutes: 12, rating: 4.2, verified: false },
+  { id: "m1", name: "USDTBaron", online: true, completedTrades: 5623, completionRatePct: null, avgReleaseMinutes: null, isNew: false, verified: true },
+  { id: "m2", name: "CryptoKingNG", online: true, completedTrades: 1240, completionRatePct: null, avgReleaseMinutes: null, isNew: false, verified: true },
+  { id: "m3", name: "FastTrade_Wise", online: true, completedTrades: 890, completionRatePct: null, avgReleaseMinutes: null, isNew: false, verified: true },
+  { id: "m4", name: "AlphaOTC", online: false, completedTrades: 2310, completionRatePct: null, avgReleaseMinutes: null, isNew: false, verified: true },
+  { id: "m5", name: "SwiftPay", online: true, completedTrades: 452, completionRatePct: null, avgReleaseMinutes: null, isNew: false, verified: false },
+  { id: "m6", name: "GreenExchange", online: false, completedTrades: 121, completionRatePct: null, avgReleaseMinutes: null, isNew: false, verified: false },
 ];
 
 function merchant(id: string): P2PMerchant {

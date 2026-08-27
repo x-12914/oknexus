@@ -13,6 +13,7 @@ import type {
   P2POrder,
   P2POrderAction,
 } from "@/lib/exchange/types";
+import { getMerchantStatsFor, withRealStats, asHouseMerchant } from "@/lib/p2p-reputation";
 
 // DB-backed P2P: house-liquidity ads + user-created ads share one table, with
 // real two-sided escrow. When a real advertiser's ad is taken, both wallets move
@@ -102,7 +103,22 @@ export async function listAds(viewerId: string | null, filter?: P2PAdFilter): Pr
     ...(viewerId ? { NOT: { advertiserId: viewerId } } : {}),
   };
   const rows = await prisma.p2PAd.findMany({ where });
-  const ads = rows.map(toAd);
+
+  // Reputation is computed from real orders, not read from the snapshot stored
+  // on the ad. One batched query for the whole page rather than one per ad.
+  const stats = await getMerchantStatsFor(rows.map((r) => r.advertiserId));
+  const ads = rows.map((r) => {
+    const ad = toAd(r);
+    if (r.advertiserId) {
+      const s = stats.get(r.advertiserId);
+      return s ? { ...ad, merchant: withRealStats(ad.merchant, s) } : ad;
+    }
+    // House ads seeded before this change still carry invented identities and
+    // histories in their stored blob. Normalising here rather than migrating
+    // means an old row can never resurface a fake track record.
+    return { ...ad, merchant: asHouseMerchant(ad.merchant) };
+  });
+
   // Best price first: taker buying (ad SELL) wants low; taker selling wants high.
   ads.sort((a, b) => (a.side === "SELL" ? a.price - b.price : b.price - a.price));
   return ads;
@@ -149,10 +165,12 @@ export async function createAd(userId: string, input: CreateAdInput): Promise<P2
     id: userId,
     name: displayName,
     online: true,
+    // Placeholder only: listP2PAds overlays live figures computed from real
+    // orders, so this snapshot is never what a user actually sees.
     completedTrades: 0,
-    completionRatePct: 100,
-    avgReleaseMinutes: 5,
-    rating: 5,
+    completionRatePct: null,
+    avgReleaseMinutes: null,
+    isNew: true,
     verified: false,
   };
 

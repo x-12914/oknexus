@@ -233,12 +233,18 @@ export interface P2PMerchant {
   id: string;
   name: string;
   online: boolean;
+  /** Completed trades as advertiser. Computed from real orders, never stored. */
   completedTrades: number;
-  completionRatePct: number;
-  avgReleaseMinutes: number;
-  rating: number; // 0–5
+  /** Null when there is no decided history yet — not 100%. */
+  completionRatePct: number | null;
+  /** Median minutes to release; null if they have never completed one. */
+  avgReleaseMinutes: number | null;
+  /** No trades yet. The UI should say so rather than imply a perfect record. */
+  isNew: boolean;
   verified: boolean;
 }
+// `rating` was removed deliberately: there is no review mechanism, so any star
+// value shown to users was invented.
 
 export interface P2PPaymentMethod {
   id: string;
