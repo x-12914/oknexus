@@ -9,6 +9,8 @@ import { SignOutAllCard } from "@/components/security/SignOutAllCard";
 import { PasswordManagementCard } from "@/components/security/PasswordManagementCard";
 import { ConnectedAccountsCard } from "@/components/security/ConnectedAccountsCard";
 import { WithdrawalWhitelistCard } from "@/components/security/WithdrawalWhitelistCard";
+import { AntiPhishingCard } from "@/components/security/AntiPhishingCard";
+import { ApiKeysCard } from "@/components/security/ApiKeysCard";
 
 export default async function SecurityPage() {
   const u = await sessionUser();
@@ -54,6 +56,10 @@ export default async function SecurityPage() {
           />
 
           <WithdrawalWhitelistCard />
+
+          <AntiPhishingCard />
+
+          <ApiKeysCard />
 
           <LoginHistory
             events={events.map((e) => ({

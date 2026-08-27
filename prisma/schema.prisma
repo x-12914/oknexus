@@ -56,6 +56,9 @@ model User {
   withdrawalAddresses WithdrawalAddress[]
   /// When on, withdrawals may only go to whitelisted addresses.
   whitelistOnly    Boolean  @default(false)
+  /// Shown in every email we send, so a user can tell our mail from a phish.
+  antiPhishingCode String?
+  apiKeys          ApiKey[]
 }
 
 enum UserRole {
@@ -659,5 +662,30 @@ model WithdrawalAddress {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, chain, address])
+  @@index([userId])
+}
+
+/// A user's programmatic access key.
+///
+/// Only a hash is stored. The plaintext is shown once at creation and cannot be
+/// recovered — a key we can display on demand is a key an attacker can read out
+/// of our database.
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     String
+  label      String
+  /// SHA-256 of the full key.
+  keyHash    String    @unique
+  /// First few characters, so a user can tell their keys apart.
+  prefix     String
+  /// Read-only by default; trading and withdrawal are opt-in.
+  canTrade   Boolean   @default(false)
+  canWithdraw Boolean  @default(false)
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
 }

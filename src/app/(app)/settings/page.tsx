@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   ArrowRight,
+  BadgeCheck,
   Bell,
   CreditCard,
   Gift,
@@ -25,6 +26,12 @@ const SECTIONS = [
     label: "Security",
     desc: "Password, two-factor, sessions and withdrawal whitelist",
     icon: Shield,
+  },
+  {
+    href: "/settings/verification",
+    label: "Verification & limits",
+    desc: "Your level, daily limits and how to raise them",
+    icon: BadgeCheck,
   },
   {
     href: "/settings/preferences",

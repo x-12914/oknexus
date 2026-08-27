@@ -6,6 +6,7 @@ import { getExchange } from "@/lib/exchange";
 import { getChainAdapter } from "./registry";
 import { assertWithdrawalAllowed } from "./whitelist";
 import { WITHDRAWAL_MARGIN_PCT } from "@/lib/fees";
+import { tierForUser } from "@/lib/limits";
 
 // Floor per asset, used only when the chain can't be reached or can't price
 // the asset. The real figure is measured live — see withdrawFee below.
@@ -51,15 +52,6 @@ export async function withdrawFee(chain: string, symbol: string): Promise<number
 export class DailyLimitError extends Error {}
 
 /**
- * Rolling-24h withdrawal cap in USD.
- *
- * The old 50,000 default was written when this was a simulated demo and nothing
- * left the building. It now governs a real payout rail, so the default is
- * deliberately conservative — raise it explicitly, ideally per KYC tier.
- */
-const DAILY_LIMIT_USD = Number(process.env.WITHDRAW_DAILY_USD_LIMIT ?? 2000);
-
-/**
  * Dual-control threshold in USD.
  *
  * Withdrawals at or above this sit in PENDING_APPROVAL until a second person
@@ -103,7 +95,11 @@ export async function dailyLimitStatus(
   userId: string,
   db: Db = prisma,
   pricesIn?: Map<string, number>,
+  capIn?: number,
 ): Promise<DailyLimitStatus> {
+  // The cap shown must be the cap enforced, so it comes from the same tier
+  // lookup rather than the old flat constant.
+  const capUsd = capIn ?? (await tierForUser(userId)).dailyWithdrawUsd;
   const since = new Date(Date.now() - 24 * 3600 * 1000);
   const [rows, payouts, prices] = await Promise.all([
     db.withdrawal.findMany({
@@ -119,7 +115,7 @@ export async function dailyLimitStatus(
   const usedUsd =
     rows.reduce((s, r) => s + Number(r.amount) * (prices.get(r.symbol) ?? 0), 0) +
     payouts.reduce((s, r) => s + Number(r.fromAmount) * (prices.get(r.fromSymbol) ?? 0), 0);
-  return { limitUsd: DAILY_LIMIT_USD, usedUsd, remainingUsd: Math.max(0, DAILY_LIMIT_USD - usedUsd) };
+  return { limitUsd: capUsd, usedUsd, remainingUsd: Math.max(0, capUsd - usedUsd) };
 }
 
 /** Throw DailyLimitError if this withdrawal would push the rolling-24h total over the cap. */
@@ -130,15 +126,21 @@ export async function assertWithinDailyLimit(
   db: Db = prisma,
   pricesIn?: Map<string, number>,
 ): Promise<void> {
-  if (!(DAILY_LIMIT_USD > 0)) return;
+  // Verified users get a higher ceiling — that is most of what verification
+  // buys, and a flat cap made it worth nothing for crypto withdrawals.
+  const tier = await tierForUser(userId);
+  const capUsd = tier.dailyWithdrawUsd;
+  if (!(capUsd > 0)) return;
   // Only the usage sum needs to run inside the caller's transaction. Prices are
   // uncontended, so callers holding a lock fetch them first and pass them in.
   const prices = pricesIn ?? (await usdPriceMap());
-  const { usedUsd, remainingUsd } = await dailyLimitStatus(userId, db, prices);
+  const { usedUsd } = await dailyLimitStatus(userId, db, prices, capUsd);
   const thisUsd = amount * (prices.get(symbol) ?? 0);
-  if (usedUsd + thisUsd > DAILY_LIMIT_USD) {
+  if (usedUsd + thisUsd > capUsd) {
+    const left = Math.max(0, capUsd - usedUsd);
     throw new DailyLimitError(
-      `Daily withdrawal limit reached — about $${remainingUsd.toFixed(0)} left in the next 24h.`,
+      `Daily withdrawal limit reached — about $${left.toFixed(0)} left in the next 24h.` +
+        (tier.id === "unverified" ? " Verify your identity to raise it." : ""),
     );
   }
 }
