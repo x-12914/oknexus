@@ -66,14 +66,27 @@ export async function pollCollections(): Promise<CollectionResult> {
     const accountNumber = t.account_number as string;
     const userId = owner.get(accountNumber);
 
-    // Money in an account we don't recognise. Recording it against no user is
-    // impossible, so it is left for an admin — the alternative is silently
-    // ignoring someone's money.
+    // Money in an account we don't recognise. Persisted with no owner rather
+    // than only logged: this is somebody's money, and a log line is not a
+    // record anyone will reconcile. Stored HELD, which raises an alert.
     if (!userId) {
       result.held++;
-      console.error(
-        `[collections] unattributable NGN credit tx=${t.transaction_id} account=${accountNumber}`,
-      );
+      await prisma.fiatDeposit
+        .create({
+          data: {
+            providerTxId: t.transaction_id,
+            currency: t.currency,
+            amount: toNumber(t.amount),
+            fee: toNumber(t.fee),
+            status: "HELD",
+            accountNumber,
+            reference: t.reference,
+            valueDate: t.value_date,
+            holdReason: `No user is assigned to account ${accountNumber}`,
+          },
+        })
+        // Already recorded on an earlier pass; nothing new to say.
+        .catch(() => {});
       continue;
     }
 
@@ -149,7 +162,7 @@ export async function listHeldDeposits() {
   });
   return rows.map((r) => ({
     id: r.id,
-    userId: r.userId,
+    userId: r.userId ?? null,
     currency: r.currency,
     amount: Number(r.amount),
     status: r.status,
