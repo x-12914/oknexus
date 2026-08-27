@@ -16,6 +16,7 @@ interface ApiKeyView {
 
 export function ApiKeysCard() {
   const [keys, setKeys] = useState<ApiKeyView[] | null>(null);
+  const [available, setAvailable] = useState(false);
   const [label, setLabel] = useState("");
   const [canTrade, setCanTrade] = useState(false);
   const [canWithdraw, setCanWithdraw] = useState(false);
@@ -27,7 +28,9 @@ export function ApiKeysCard() {
 
   const refresh = useCallback(async () => {
     const r = await fetch("/api/user/api-keys", { cache: "no-store" });
-    setKeys(((await r.json()) as { keys: ApiKeyView[] }).keys);
+    const j = (await r.json()) as { keys: ApiKeyView[]; available: boolean };
+    setKeys(j.keys);
+    setAvailable(j.available);
   }, []);
 
   useEffect(() => {
@@ -74,6 +77,14 @@ export function ApiKeysCard() {
       <p className="mt-1 text-xs text-[var(--color-muted)]">
         For connecting bots or scripts to your account.
       </p>
+
+      {!available && (
+        <p className="mt-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3 text-xs leading-relaxed text-[var(--color-muted)]">
+          Programmatic access isn&apos;t available yet, so there&apos;s nothing a key would open
+          today. We&apos;d rather say that than hand you a credential that quietly does nothing.
+          Any keys you already hold are listed below and can still be revoked.
+        </p>
+      )}
 
       {fresh && (
         <div className="mt-4 rounded-lg border border-[var(--color-up)]/40 bg-[var(--color-up-bg)] p-3">
@@ -143,6 +154,7 @@ export function ApiKeysCard() {
         )}
       </div>
 
+      {available && (
       <div className="mt-4 space-y-2">
         <input
           value={label}
@@ -191,6 +203,7 @@ export function ApiKeysCard() {
           {busy ? "Working…" : "Create key"}
         </button>
       </div>
+      )}
 
       {error && <p className="mt-3 text-xs text-[var(--color-down)]">{error}</p>}
     </div>

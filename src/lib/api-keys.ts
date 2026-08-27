@@ -17,6 +17,19 @@ const PREFIX = "okx_";
 
 export class ApiKeyError extends Error {}
 
+/**
+ * Whether API keys can be issued.
+ *
+ * Off until something actually authenticates with them. resolveApiKey() exists
+ * but no route calls it, so a key issued today opens no doors — while the UI
+ * offers a "can withdraw" scope that implies it moves money. Handing someone a
+ * credential that does nothing, and warning them it is dangerous, is worse than
+ * not offering it: it teaches them the warning is noise.
+ */
+export function apiKeysEnabled(): boolean {
+  return process.env.ENABLE_API_KEYS === "true";
+}
+
 export interface ApiKeyView {
   id: string;
   label: string;
@@ -50,6 +63,9 @@ export async function createApiKey(
   label: string,
   perms: { canTrade?: boolean; canWithdraw?: boolean } = {},
 ): Promise<{ key: string; view: ApiKeyView }> {
+  if (!apiKeysEnabled()) {
+    throw new ApiKeyError("API access isn't available yet.");
+  }
   const existing = await prisma.apiKey.count({ where: { userId, revokedAt: null } });
   if (existing >= 10) throw new ApiKeyError("You can have at most 10 active keys.");
 

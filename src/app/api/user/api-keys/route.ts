@@ -2,12 +2,20 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { sessionUserId } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
-import { listApiKeys, createApiKey, revokeApiKey, ApiKeyError } from "@/lib/api-keys";
+import {
+  listApiKeys,
+  createApiKey,
+  revokeApiKey,
+  apiKeysEnabled,
+  ApiKeyError,
+} from "@/lib/api-keys";
 
 export async function GET() {
   const userId = await sessionUserId();
-  if (!userId) return Response.json({ keys: [] });
-  return Response.json({ keys: await listApiKeys(userId) });
+  if (!userId) return Response.json({ keys: [], available: false });
+  // Revoking stays available even when issuing is off, so anyone holding an
+  // older key can still retire it.
+  return Response.json({ keys: await listApiKeys(userId), available: apiKeysEnabled() });
 }
 
 const Body = z.discriminatedUnion("action", [
