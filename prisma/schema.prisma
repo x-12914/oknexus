@@ -534,6 +534,7 @@ model Deposit {
 }
 
 enum WithdrawalStatus {
+  PENDING_APPROVAL // over the dual-control threshold; needs a second person
   REQUESTED // funds locked, awaiting broadcast
   BROADCAST // signed & sent, awaiting confirmations
   CONFIRMED // on-chain confirmed, funds settled out
@@ -550,6 +551,9 @@ model Withdrawal {
   toAddress String
   txHash    String?
   status    WithdrawalStatus @default(REQUESTED)
+  /// Dual control: whoever approved this must not be whoever requested it.
+  approvedBy String?
+  approvedAt DateTime?
   error     String?
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
@@ -608,4 +612,27 @@ model FiatPayout {
 
   @@index([userId, createdAt])
   @@index([status])
+}
+
+/// Immutable record of privileged actions.
+///
+/// Role-based access control says who *may* act; it does not record who *did*.
+/// For a platform holding customer funds the second question is the one that
+/// matters after the fact, so every admin action and approval lands here.
+model AuditLog {
+  id         String   @id @default(cuid())
+  /// Who performed it. Null only for system-initiated actions.
+  actorId    String?
+  actorEmail String?
+  action     String
+  targetType String?
+  targetId   String?
+  /// Free-form context: amounts, before/after values, reason.
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+  @@index([targetType, targetId])
 }

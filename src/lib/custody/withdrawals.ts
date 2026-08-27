@@ -58,6 +58,16 @@ export class DailyLimitError extends Error {}
  */
 const DAILY_LIMIT_USD = Number(process.env.WITHDRAW_DAILY_USD_LIMIT ?? 2000);
 
+/**
+ * Dual-control threshold in USD.
+ *
+ * Withdrawals at or above this sit in PENDING_APPROVAL until a second person
+ * releases them. RBAC alone means one compromised admin account can drain the
+ * treasury; requiring a different human to approve is the control that actually
+ * stops that. 0 disables approval entirely.
+ */
+const APPROVAL_THRESHOLD_USD = Number(process.env.WITHDRAW_APPROVAL_USD ?? 1000);
+
 export interface DailyLimitStatus {
   limitUsd: number;
   usedUsd: number;
@@ -170,8 +180,21 @@ export async function requestWithdrawal(
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId})::bigint)`;
     await assertWithinDailyLimit(userId, symbol, amount, tx, prices);
 
+    const usdValue = amount * (prices.get(symbol) ?? 0);
+    const needsApproval = APPROVAL_THRESHOLD_USD > 0 && usdValue >= APPROVAL_THRESHOLD_USD;
+
     const w = await tx.withdrawal.create({
-      data: { userId, chain, symbol, amount, fee, toAddress, status: "REQUESTED" },
+      data: {
+        userId,
+        chain,
+        symbol,
+        amount,
+        fee,
+        toAddress,
+        // processWithdrawals only picks up REQUESTED, so PENDING_APPROVAL is
+        // held back from the broadcaster without needing a separate guard.
+        status: needsApproval ? "PENDING_APPROVAL" : "REQUESTED",
+      },
     });
     await lock(tx, userId, symbol, total, {
       type: LedgerType.WITHDRAWAL,
@@ -295,4 +318,92 @@ export async function processWithdrawals(chain: string): Promise<ProcessResult> 
   }
 
   return result;
+}
+
+
+export class ApprovalError extends Error {}
+
+/**
+ * Release a withdrawal that is waiting on dual control.
+ *
+ * The approver must be a different person from the requester. Letting someone
+ * approve their own withdrawal would make the whole control decorative — which
+ * is precisely the gap between this and plain role-based access.
+ */
+export async function approveWithdrawal(
+  withdrawalId: string,
+  approverId: string,
+): Promise<{ id: string; status: string }> {
+  const w = await prisma.withdrawal.findUnique({ where: { id: withdrawalId } });
+  if (!w) throw new ApprovalError("Withdrawal not found.");
+  if (w.status !== "PENDING_APPROVAL") {
+    throw new ApprovalError(`That withdrawal is ${w.status}, not awaiting approval.`);
+  }
+  if (w.userId === approverId) {
+    throw new ApprovalError("A withdrawal can't be approved by the person who requested it.");
+  }
+
+  // Guarded transition so two approvers clicking at once can't both release it.
+  const claim = await prisma.withdrawal.updateMany({
+    where: { id: withdrawalId, status: "PENDING_APPROVAL" },
+    data: { status: "REQUESTED", approvedBy: approverId, approvedAt: new Date() },
+  });
+  if (claim.count === 0) throw new ApprovalError("That withdrawal was already actioned.");
+  return { id: withdrawalId, status: "REQUESTED" };
+}
+
+/** Reject a pending withdrawal and return the locked funds. */
+export async function rejectWithdrawal(
+  withdrawalId: string,
+  approverId: string,
+  reason: string,
+): Promise<void> {
+  const w = await prisma.withdrawal.findUnique({ where: { id: withdrawalId } });
+  if (!w) throw new ApprovalError("Withdrawal not found.");
+  if (w.status !== "PENDING_APPROVAL") {
+    throw new ApprovalError(`That withdrawal is ${w.status}, not awaiting approval.`);
+  }
+  if (w.userId === approverId) {
+    throw new ApprovalError("A withdrawal can't be actioned by the person who requested it.");
+  }
+
+  await withLedger(async (tx) => {
+    const claim = await tx.withdrawal.updateMany({
+      where: { id: withdrawalId, status: "PENDING_APPROVAL" },
+      data: { status: "FAILED", approvedBy: approverId, approvedAt: new Date(), error: reason },
+    });
+    if (claim.count === 0) throw new ApprovalError("That withdrawal was already actioned.");
+    // Nothing was ever broadcast, so the reserved funds go straight back.
+    await unlock(tx, w.userId, w.symbol, Number(w.amount) + Number(w.fee), {
+      type: LedgerType.WITHDRAWAL,
+      refId: w.id,
+      memo: "Withdrawal rejected",
+    });
+  });
+
+  await notify(w.userId, {
+    type: "WITHDRAWAL",
+    title: "Withdrawal declined",
+    body: `Your ${w.symbol} withdrawal was declined and the funds are back in your balance.`,
+    href: "/withdraw",
+  });
+}
+
+/** Withdrawals waiting on a second approver. */
+export async function listPendingApprovals() {
+  const rows = await prisma.withdrawal.findMany({
+    where: { status: "PENDING_APPROVAL" },
+    orderBy: { createdAt: "asc" },
+    take: 100,
+  });
+  return rows.map((w) => ({
+    id: w.id,
+    userId: w.userId,
+    chain: w.chain,
+    symbol: w.symbol,
+    amount: Number(w.amount),
+    fee: Number(w.fee),
+    toAddress: w.toAddress,
+    createdAt: w.createdAt.getTime(),
+  }));
 }

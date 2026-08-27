@@ -7,6 +7,8 @@ import {
   listRecentLedger,
   listAllAds,
 } from "@/lib/admin";
+import { listAudit } from "@/lib/audit";
+import { listPendingApprovals } from "@/lib/custody/withdrawals";
 
 export async function GET(req: NextRequest) {
   const adminId = await requireAdmin();
@@ -23,6 +25,10 @@ export async function GET(req: NextRequest) {
       return Response.json({ rows: await listRecentLedger() });
     case "ads":
       return Response.json({ ads: await listAllAds() });
+    case "approvals":
+      return Response.json({ approvals: await listPendingApprovals() });
+    case "audit":
+      return Response.json({ audit: await listAudit() });
     default:
       return Response.json({ error: "Unknown view" }, { status: 400 });
   }
