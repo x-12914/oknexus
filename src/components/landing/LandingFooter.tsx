@@ -25,7 +25,7 @@ const COLUMNS: { title: string; links: [string, string][] }[] = [
     links: [
       ["Academy", "/academy"],
       ["Blog", "/blog"],
-      ["Help Center", "/settings/support"],
+      ["Help Center", "/help"],
       ["Rate Calculator", "/rate-calculator"],
       ["Crypto Converter", "/crypto-converter"],
     ],
@@ -36,7 +36,7 @@ const COLUMNS: { title: string; links: [string, string][] }[] = [
       ["About Oknexus", "/about"],
       ["Careers", "/careers"],
       ["We Care", "/we-care"],
-      ["Contact", "/settings/support"],
+      ["Contact", "/contact"],
       ["Newsletter", "/blog"],
     ],
   },

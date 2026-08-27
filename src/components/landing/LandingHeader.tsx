@@ -44,8 +44,8 @@ const MENUS: NavMenu[] = [
   {
     label: "Support",
     items: [
-      { href: "/settings/support", label: "Help Center", desc: "Guides and answers, 24/7" },
-      { href: "/settings/support", label: "Contact", desc: "Reach our support team" },
+      { href: "/help", label: "Help Center", desc: "Guides and answers, 24/7" },
+      { href: "/contact", label: "Contact", desc: "Reach our support team" },
     ],
   },
 ];
