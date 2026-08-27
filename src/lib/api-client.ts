@@ -38,6 +38,7 @@ import type {
   PayoutQuote,
   FiatPayoutView,
   ResolvedAccount,
+  Corridor,
 } from "@/lib/ramp/types";
 import type {
   CustodyConfig,
@@ -274,6 +275,9 @@ export const api = {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ quoteId }),
     }).then((r) => mutate<RampResult>(r, "Payment failed")),
+
+  corridors: () =>
+    fetch("/api/corridors", { cache: "no-store" }).then((r) => j<{ corridors: Corridor[] }>(r)),
 
   payoutConfig: () =>
     fetch("/api/ramp/payout/config", { cache: "no-store" }).then((r) =>

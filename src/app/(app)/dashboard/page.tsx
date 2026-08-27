@@ -5,6 +5,7 @@ import { PortfolioSummary } from "@/components/dashboard/PortfolioSummary";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { AssetList, type AssetRow } from "@/components/dashboard/AssetList";
 import { RecentActivity, type ActivityRow } from "@/components/dashboard/RecentActivity";
+import { CorridorStrip } from "@/components/dashboard/CorridorStrip";
 
 // Rough USD exchange rates for portfolio estimation. In the future these will be
 // replaced by a live price oracle.
@@ -97,6 +98,11 @@ export default async function DashboardPage() {
             <QuickActions />
           </div>
         </div>
+
+        {/* Payment corridors — the distinctive thing OKNexus offers, so it sits
+            above the generic asset/activity rows. Renders nothing when the
+            payout provider is unreachable. */}
+        <CorridorStrip />
 
         {/* Bottom row: Assets + Activity */}
         <div className="grid gap-6 lg:grid-cols-2">

@@ -71,3 +71,18 @@ export interface ResolvedAccount {
   bankCode: string;
   verified: boolean;
 }
+
+/** A payment corridor OKNexus can reach, as reported by the payout provider. */
+export interface Corridor {
+  country: string;
+  countryName: string;
+  flag: string;
+  currency: string;
+  /** bank, mobile_money, swift, wire, ach … */
+  methods: string[];
+  region: "africa" | "global";
+  /** True when the full off-ramp works end to end today. */
+  live: boolean;
+  /** Local currency per 1 USDT. Null where we have no honest figure. */
+  rate: number | null;
+}
