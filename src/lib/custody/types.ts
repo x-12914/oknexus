@@ -13,6 +13,8 @@ export interface ChainConfig {
   chain: string; // "ethereum-sepolia"
   kind: ChainKind;
   nativeSymbol: string; // "ETH"
+  /** True for test networks. Drives the deposit-screen warning, so it must be explicit. */
+  testnet: boolean;
   minConfirmations: number;
   explorerTxUrl: (hash: string) => string;
   explorerAddressUrl: (addr: string) => string;

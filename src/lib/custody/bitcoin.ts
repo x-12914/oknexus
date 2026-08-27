@@ -25,6 +25,7 @@ export class BitcoinAdapter implements ChainAdapter {
       chain: process.env.BTC_CHAIN_NAME ?? "bitcoin-testnet",
       kind: "BTC",
       nativeSymbol: "BTC",
+      testnet: NETWORK === bitcoin.networks.testnet,
       minConfirmations: Number(process.env.BTC_MIN_CONFIRMATIONS ?? 1),
       explorerTxUrl: (h) => `https://blockstream.info/testnet/tx/${h}`,
       explorerAddressUrl: (a) => `https://blockstream.info/testnet/address/${a}`,

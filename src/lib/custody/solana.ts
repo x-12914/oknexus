@@ -25,6 +25,7 @@ export class SolanaAdapter implements ChainAdapter {
       chain: process.env.SOL_CHAIN_NAME ?? "solana-devnet",
       kind: "SOL",
       nativeSymbol: "SOL",
+      testnet: !(process.env.SOL_RPC_URL ?? "").includes("mainnet"),
       minConfirmations: Number(process.env.SOL_MIN_CONFIRMATIONS ?? 1),
       explorerTxUrl: (h) => `https://explorer.solana.com/tx/${h}?cluster=devnet`,
       explorerAddressUrl: (a) => `https://explorer.solana.com/address/${a}?cluster=devnet`,

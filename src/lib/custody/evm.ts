@@ -68,6 +68,7 @@ export class EvmAdapter implements ChainAdapter {
       chain: process.env.EVM_CHAIN_NAME ?? "ethereum-sepolia",
       kind: "EVM",
       nativeSymbol: process.env.EVM_NATIVE_SYMBOL ?? "ETH",
+      testnet: !IS_MAINNET,
       minConfirmations: Number(process.env.EVM_MIN_CONFIRMATIONS ?? (IS_MAINNET ? 12 : 3)),
       explorerTxUrl: (h) => `${EXPLORER}/tx/${h}`,
       explorerAddressUrl: (a) => `${EXPLORER}/address/${a}`,

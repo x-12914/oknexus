@@ -4,6 +4,7 @@ export interface ChainInfo {
   chain: string; // "ethereum-sepolia"
   label: string; // "Ethereum Sepolia"
   nativeSymbol: string; // "ETH"
+  testnet: boolean;
   minConfirmations: number;
   assets: string[]; // withdrawable/depositable symbols on this chain
 }
