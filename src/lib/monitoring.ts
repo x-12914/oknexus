@@ -125,8 +125,17 @@ export async function runHealthChecks(ctx: HealthContext = {}): Promise<CheckRes
 
   checks.push(
     check("withdrawals:stuck", "warning", "Withdrawals awaiting reconciliation", async () => {
+      // Scoped to currently enabled chains and to rows old enough that the gap
+      // isn't just the broadcast round-trip. Without both, this fires forever on
+      // testnet rows left behind by a decommissioned chain — and an alert that
+      // is always on is an alert everyone learns to ignore.
       const stuck = await prisma.withdrawal.count({
-        where: { status: "BROADCAST", txHash: null },
+        where: {
+          status: "BROADCAST",
+          txHash: null,
+          chain: { in: [...ALL_CHAINS] },
+          createdAt: { lt: new Date(Date.now() - STUCK_PAYOUT_MS) },
+        },
       });
       return stuck > 0
         ? `${stuck} withdrawal(s) broadcast with no tx hash — needs manual reconciliation`
