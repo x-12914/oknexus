@@ -364,6 +364,9 @@ model P2POrder {
   merchant             Json // merchant snapshot for display
   paymentWindowMinutes Int
   escrowLocked         Boolean        @default(false)
+  /// P2P fee taken from the buyer's proceeds, in `asset`. Covers escrow and
+  /// dispute-resolution overhead rather than being a pure margin.
+  fee                  Decimal        @default(0) @db.Decimal(30, 10)
   createdAt            DateTime       @default(now())
   expiresAt            DateTime
   completedAt          DateTime?

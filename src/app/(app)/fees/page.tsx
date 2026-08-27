@@ -134,6 +134,27 @@ export default async function FeesPage() {
           </p>
         </div>
 
+        {/* Buy & Sell and Spot both end with the user holding crypto, at very
+            different prices. Saying nothing invites people to feel misled once
+            they find the cheaper route, so the difference is stated plainly. */}
+        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-5">
+          <h2 className="text-sm font-semibold text-[var(--color-foreground)]">
+            Why is Buy &amp; Sell more expensive than Spot?
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-[var(--color-muted)]">
+            They get you to the same place by different routes.{" "}
+            <span className="font-medium text-[var(--color-foreground)]">Buy &amp; Sell</span> is one
+            step: money leaves your bank and crypto arrives, with a payment provider carrying the
+            cost and risk of that transfer. The {pct(RAMP_PCT)} covers it.
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-[var(--color-muted)]">
+            <span className="font-medium text-[var(--color-foreground)]">Spot</span> is cheaper
+            because you have already done the harder part — the funds are on the exchange, and
+            you&apos;re trading against the order book rather than asking us to move money for you.
+            If you fund your account first and trade, you&apos;ll pay {pct(profile.takerPct)} instead.
+          </p>
+        </div>
+
         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
           <h2 className="text-sm font-semibold text-[var(--color-foreground)]">Everything else</h2>
           <dl className="mt-3 divide-y divide-[var(--color-border)] text-sm">
@@ -141,7 +162,7 @@ export default async function FeesPage() {
               ["Crypto deposit", "Free", "We don't charge to receive crypto."],
               ["Swap / convert", pct(SWAP_PCT), "Taken from the asset you receive."],
               ["Buy & sell", pct(RAMP_PCT), "On top of the payment provider's own rate."],
-              ["P2P trading", pct(P2P_PCT), "Charged on completed trades."],
+              ["P2P trading", pct(P2P_PCT), "Charged on completed trades. Covers escrow and dispute handling."],
               [
                 "Crypto withdrawal",
                 "Network cost",

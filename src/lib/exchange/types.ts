@@ -324,6 +324,8 @@ export interface P2POrder {
   buyerName: string;
   sellerName: string;
   merchant: P2PMerchant;
+  /** P2P fee taken from the buyer's proceeds, in `asset`. */
+  fee: number;
   paymentWindowMinutes: number;
   createdAt: number;
   expiresAt: number;

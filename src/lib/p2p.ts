@@ -14,6 +14,8 @@ import type {
   P2POrderAction,
 } from "@/lib/exchange/types";
 import { getMerchantStatsFor, withRealStats, asHouseMerchant } from "@/lib/p2p-reputation";
+import { quantize } from "@/lib/ledger";
+import { P2P_PCT } from "@/lib/fees";
 
 // DB-backed P2P: house-liquidity ads + user-created ads share one table, with
 // real two-sided escrow. When a real advertiser's ad is taken, both wallets move
@@ -70,6 +72,7 @@ function toP2POrder(o: DbP2POrder, viewerId: string): P2POrder {
     buyerName: o.buyerName,
     sellerName: o.sellerName,
     merchant: o.merchant as unknown as P2PMerchant,
+    fee: Number(o.fee),
     paymentWindowMinutes: o.paymentWindowMinutes,
     createdAt: o.createdAt.getTime(),
     expiresAt: o.expiresAt.getTime(),
@@ -352,6 +355,9 @@ export async function actP2POrder(
 
     let status: P2POrderStatus;
     let sysText: string;
+    // Recorded on the order so P2P revenue is auditable rather than implied by
+    // the gap between what left escrow and what the buyer received.
+    let p2pFee = 0;
 
     switch (action) {
       case "MARK_PAID":
@@ -368,11 +374,17 @@ export async function actP2POrder(
         status = "COMPLETED";
         // Settle against the actual parties (o.userId = taker), NOT the actor —
         // either party may trigger the release.
+        // The fee comes out of the buyer's proceeds, the same way spot takes its
+        // cut from the asset received. The seller's escrow still leaves in full,
+        // so the difference is the platform's — it covers escrow and dispute
+        // handling rather than being pure margin.
+        p2pFee = quantize(amount * P2P_PCT);
+        const netToBuyer = quantize(amount - p2pFee);
         if (o.takerRole === "seller") {
           await settleLocked(tx, o.userId, o.asset, amount, ref); // taker's escrow leaves
-          if (o.advertiserId) await credit(tx, o.advertiserId, o.asset, amount, ref); // advertiser receives
+          if (o.advertiserId) await credit(tx, o.advertiserId, o.asset, netToBuyer, ref); // advertiser receives
         } else {
-          await credit(tx, o.userId, o.asset, amount, ref); // taker receives
+          await credit(tx, o.userId, o.asset, netToBuyer, ref); // taker receives
           if (o.advertiserId) await settleLocked(tx, o.advertiserId, o.asset, amount, ref); // advertiser's escrow leaves
         }
         sysText = `${o.sellerName} released ${fmt(amount)} ${o.asset} from escrow. Trade complete.`;
@@ -408,6 +420,7 @@ export async function actP2POrder(
       where: { id: o.id },
       data: {
         status,
+        fee: p2pFee,
         completedAt: status === "COMPLETED" ? new Date() : undefined,
         escrowLocked:
           status === "COMPLETED" || status === "CANCELLED" ? false : o.escrowLocked,

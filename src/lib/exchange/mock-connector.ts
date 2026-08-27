@@ -714,6 +714,7 @@ export class MockExchangeConnector implements ExchangeConnector {
       buyerName,
       sellerName,
       merchant: ad.merchant,
+      fee: 0,
       paymentWindowMinutes: P2P_PAYMENT_WINDOW_MIN,
       createdAt: now,
       expiresAt: now + P2P_PAYMENT_WINDOW_MIN * 60_000,
