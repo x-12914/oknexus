@@ -129,6 +129,13 @@ export async function resolveDispute(
   await withLedger(async (tx) => {
     const o = await tx.p2POrder.findUnique({ where: { id: orderId } });
     if (!o || o.status !== "DISPUTED") throw new Error("Not a disputed order");
+    // Both resolutions move escrow between two parties. With no advertiser
+    // there is no second party, and the branches below would silently skip
+    // their settleLocked leg while still crediting — minting on release, and
+    // destroying the escrow on refund. No legitimate dispute looks like this.
+    if (!o.advertiserId) {
+      throw new Error("This order has no counterparty and cannot be resolved automatically.");
+    }
     const amount = Number(o.assetAmount);
     const ref = { type: LedgerType.P2P, refId: o.id, memo: `P2P dispute ${resolution} ${o.asset}` };
 

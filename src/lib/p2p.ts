@@ -383,6 +383,13 @@ export async function actP2POrder(
         if (o.status !== "PAID")
           throw new Error("Escrow can only be released after payment is marked");
         requireRole("seller");
+        // Mirrors the guard in resolveDispute. Both branches below pair a
+        // credit with a settleLocked; without an advertiser one leg silently
+        // vanishes and the trade mints. Unreachable now that unbacked ads
+        // cannot be taken, but the invariant belongs next to the settlement.
+        if (!o.advertiserId) {
+          throw new Error("This order has no counterparty and cannot be settled.");
+        }
         status = "COMPLETED";
         // Settle against the actual parties (o.userId = taker), NOT the actor —
         // either party may trigger the release.
