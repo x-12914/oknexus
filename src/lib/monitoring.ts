@@ -162,6 +162,25 @@ export async function runHealthChecks(ctx: HealthContext = {}): Promise<CheckRes
     }),
   );
 
+  // Signups that never got past email verification.
+  //
+  // Added after finding Resend still in test mode, silently refusing every
+  // recipient except the account owner: 19 of 53 registrations could not sign
+  // in, for weeks, with nothing surfacing it. A delivery failure looks exactly
+  // like a user who simply didn't click, which is why it needs measuring rather
+  // than assuming.
+  checks.push(
+    check("email:unverified-signups", "critical", "Signups stuck unverified", async () => {
+      const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const stuck = await prisma.user.count({
+        where: { emailVerified: null, createdAt: { gte: since } },
+      });
+      return stuck >= 3
+        ? `${stuck} signup(s) in the last 7 days never verified — check email delivery`
+        : null;
+    }),
+  );
+
   return Promise.all(checks);
 }
 
