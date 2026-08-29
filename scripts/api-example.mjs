@@ -11,16 +11,33 @@
  * included so none can be altered in flight: signing only the timestamp would
  * let someone keep a valid signature and change the order it applies to.
  */
-import { createHmac } from "node:crypto";
+import { createHmac, createHash } from "node:crypto";
 
 const BASE = process.argv[2] ?? "https://oknexusexchange.com";
-const KEY = process.env.OKN_KEY;
-const SECRET = process.env.OKN_SECRET;
+// Trimmed: a value copied from a browser very often carries a trailing space or
+// newline, and quoting it in a shell preserves that. The signature then differs
+// from the server's by a byte nobody can see, and the failure looks identical
+// to a wrong secret.
+const KEY = (process.env.OKN_KEY ?? "").trim();
+const SECRET = (process.env.OKN_SECRET ?? "").trim();
 
 if (!KEY || !SECRET) {
   console.error("Set OKN_KEY and OKN_SECRET.");
   process.exit(1);
 }
+
+/** Safe to print: identifies a value without revealing it. */
+const fingerprint = (v) => createHash("sha256").update(v).digest("hex").slice(0, 8);
+
+console.log("key    :", KEY.slice(0, 10) + "…", `(${KEY.length} chars)`);
+console.log("secret :", `fingerprint ${fingerprint(SECRET)}`, `(${SECRET.length} chars, expected 64)`);
+if (SECRET.length !== 64) {
+  console.error("!! The secret should be 64 hex characters — check for a truncated or padded paste.");
+}
+if (!/^[0-9a-f]+$/.test(SECRET)) {
+  console.error("!! The secret contains non-hex characters — something extra was included.");
+}
+console.log();
 
 /**
  * `path` must include the query string exactly as sent — the server signs what
