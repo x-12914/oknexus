@@ -36,10 +36,15 @@ export function NairaDepositPanel() {
   }, []);
 
   useEffect(() => {
-    const raf = requestAnimationFrame(() => {
+    // A timer, not requestAnimationFrame. rAF is suspended entirely while a tab
+    // is hidden, so loading this page in a background tab left it on "Loading…"
+    // until the tab was focused. Timers are merely throttled when hidden, so
+    // they still fire — and deferring at all is what satisfies React 19's rule
+    // against setting state synchronously from an effect body.
+    const t = setTimeout(() => {
       refresh().catch(() => setLoaded(true));
-    });
-    return () => cancelAnimationFrame(raf);
+    }, 0);
+    return () => clearTimeout(t);
   }, [refresh]);
 
   const submit = async () => {

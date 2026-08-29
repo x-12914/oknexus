@@ -25,15 +25,16 @@ export function CorridorStrip() {
   const [corridors, setCorridors] = useState<Corridor[] | null>(null);
 
   useEffect(() => {
-    // rAF rather than a synchronous call: React 19 rejects setState straight
-    // from an effect body, and the fetch resolves into one.
-    const raf = requestAnimationFrame(() => {
+    // A timer, not requestAnimationFrame: rAF is suspended entirely while a
+    // tab is hidden, so this never ran in a background tab. Timers are only
+    // throttled, so they still fire.
+    const timer = setTimeout(() => {
       api
         .corridors()
         .then((r) => setCorridors(r.corridors))
         .catch(() => setCorridors([]));
-    });
-    return () => cancelAnimationFrame(raf);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   // Nothing to say if the provider is unreachable — better than an empty shell.

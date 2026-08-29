@@ -456,10 +456,10 @@ function HealthTab() {
   }, []);
 
   useEffect(() => {
-    const raf = requestAnimationFrame(() => {
+    const timer = setTimeout(() => {
       load().catch(() => {});
-    });
-    return () => cancelAnimationFrame(raf);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [load]);
 
   if (!d) return <Spinner />;

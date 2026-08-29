@@ -34,12 +34,13 @@ export function WithdrawalWhitelistCard() {
   }, []);
 
   useEffect(() => {
-    // Deferred to a frame rather than called straight from the effect body:
-    // React 19 rejects a synchronous setState there, and `refresh` sets state.
-    const raf = requestAnimationFrame(() => {
+    // A timer, not requestAnimationFrame: rAF is suspended entirely while a
+    // tab is hidden, so this never ran in a background tab. Timers are only
+    // throttled, so they still fire.
+    const timer = setTimeout(() => {
       refresh().catch(() => setError("Couldn't load your saved addresses."));
-    });
-    return () => cancelAnimationFrame(raf);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [refresh]);
 
   const run = async (body: unknown, after?: () => void) => {

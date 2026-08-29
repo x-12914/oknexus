@@ -27,10 +27,10 @@ export function AntiPhishingCard() {
   }, []);
 
   useEffect(() => {
-    const raf = requestAnimationFrame(() => {
+    const timer = setTimeout(() => {
       refresh().catch(() => setLoaded(true));
-    });
-    return () => cancelAnimationFrame(raf);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [refresh]);
 
   const save = async () => {

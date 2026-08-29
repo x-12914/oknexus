@@ -63,13 +63,12 @@ export function NgnPayoutPanel() {
   // it would desync hydration. A ticking state value drives the countdown.
   const [now, setNow] = useState(0);
   useEffect(() => {
-    // Seed via rAF rather than synchronously: React 19 rejects a sync setState
-    // in an effect body, and starting at 0 keeps the server and client markup
-    // identical until the first frame.
-    const raf = requestAnimationFrame(() => setNow(Date.now()));
+    // Deferred by a timer, not a frame: rAF never fires in a hidden tab, and
+    // starting at 0 keeps server and client markup identical until then.
+    const timer = setTimeout(() => setNow(Date.now()), 0);
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => {
-      cancelAnimationFrame(raf);
+      clearTimeout(timer);
       clearInterval(id);
     };
   }, []);

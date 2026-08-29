@@ -33,10 +33,10 @@ export function ApiKeysCard() {
   }, []);
 
   useEffect(() => {
-    const raf = requestAnimationFrame(() => {
+    const timer = setTimeout(() => {
       refresh().catch(() => setKeys([]));
-    });
-    return () => cancelAnimationFrame(raf);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [refresh]);
 
   const run = async (body: unknown) => {

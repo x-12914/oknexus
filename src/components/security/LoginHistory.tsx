@@ -23,10 +23,10 @@ export function LoginHistory({ events }: { events: Event[] }) {
   // minute so "x ago" stays current.
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
-    const raf = requestAnimationFrame(() => setNow(Date.now()));
+    const timer = setTimeout(() => setNow(Date.now()), 0);
     const id = setInterval(() => setNow(Date.now()), 60_000);
     return () => {
-      cancelAnimationFrame(raf);
+      clearTimeout(timer);
       clearInterval(id);
     };
   }, []);
