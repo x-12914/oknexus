@@ -8,6 +8,7 @@ import { DailyLimitError } from "@/lib/custody/withdrawals";
 import { payoutConfigured } from "@/lib/ramp/bitnob-payout";
 import { payoutRequiresKyc } from "@/lib/ramp/flags";
 import { requestPayout } from "@/lib/ramp/payouts";
+import { withIdempotency, idempotencyKeyFrom, IdempotencyConflict } from "@/lib/idempotency";
 
 const Schema = z.object({
   payoutId: z.string().min(8),
@@ -27,9 +28,45 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Too many attempts. Try again later." }, { status: 429 });
   }
 
-  const parsed = Schema.safeParse(await req.json());
+  // Read once as text: the idempotency hash must cover the exact bytes sent.
+  const rawText = await req.text();
+  let body: unknown;
+  try {
+    body = JSON.parse(rawText);
+  } catch {
+    return Response.json({ error: "Invalid request" }, { status: 400 });
+  }
+  const parsed = Schema.safeParse(body);
   if (!parsed.success) return Response.json({ error: "Invalid request" }, { status: 400 });
 
+  try {
+    return await withIdempotency(
+      userId,
+      idempotencyKeyFrom(req),
+      "ramp:payout",
+      rawText,
+      () => execute(userId, parsed.data),
+    );
+  } catch (e) {
+    if (e instanceof IdempotencyConflict) {
+      return Response.json({ error: e.message }, { status: e.status });
+    }
+    throw e;
+  }
+}
+
+/**
+ * The guarded body of a payout.
+ *
+ * Lives inside the idempotency wrapper, two-factor check included. Placing the
+ * wrapper outside it matters: verifyTotpOnce deliberately burns the code, so a
+ * client retrying a request whose response it never saw would otherwise be told
+ * to enter a code it already used, instead of receiving the original result.
+ */
+async function execute(
+  userId: string,
+  input: { payoutId: string; bankCode: string; accountNumber: string; code?: string },
+): Promise<Response> {
   // Two-factor is REQUIRED here, not merely honoured when the user happens to have
   // switched it on. This route sends real money to a bank account and the transfer
   // is not reversible, so an account with no second factor must not be able to
@@ -54,7 +91,7 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Too many attempts. Please try again later." }, { status: 429 });
   }
   const secret = decryptSecret(user.twoFASecret);
-  const code = String(parsed.data.code ?? "");
+  const code = String(input.code ?? "");
   if (!code || !secret || !verifyTotpOnce(userId, secret, code)) {
     return Response.json(
       { error: "Enter your authenticator code to confirm this payout.", needCode: true },
@@ -65,7 +102,7 @@ export async function POST(req: NextRequest) {
   try {
     // requestPayout enforces the shared rolling-24h cap internally, once it has
     // re-read the quote and knows the real amount.
-    const payout = await requestPayout(userId, parsed.data);
+    const payout = await requestPayout(userId, input);
     return Response.json(payout);
   } catch (e) {
     if (e instanceof DailyLimitError) return Response.json({ error: e.message }, { status: 400 });

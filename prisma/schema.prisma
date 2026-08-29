@@ -61,6 +61,7 @@ model User {
   /// Shown in every email we send, so a user can tell our mail from a phish.
   antiPhishingCode    String?
   apiKeys             ApiKey[]
+  idempotencyKeys     IdempotencyKey[]
 }
 
 enum UserRole {
@@ -770,4 +771,34 @@ model FiatDeposit {
 
   @@index([userId, createdAt])
   @@index([status])
+}
+
+/// A client-supplied key that makes one money-moving request replayable safely.
+///
+/// A user double-clicks, a phone drops onto a flaky network and the browser
+/// retries, a bot's HTTP client retries a timeout it never saw the response to.
+/// Without this each of those is a second withdrawal, a second order, a second
+/// payout. The stored response lets the retry receive the ORIGINAL result
+/// rather than a new side effect.
+///
+/// requestHash is kept so a key cannot be reused for different parameters —
+/// replaying a key with a changed amount must be refused, not silently
+/// answered with the old response.
+model IdempotencyKey {
+  id          String   @id @default(cuid())
+  userId      String
+  /// Client-supplied, unique per user.
+  key         String
+  endpoint    String
+  requestHash String
+  /// IN_FLIGHT until the handler finishes, then COMPLETED.
+  status      String   @default("IN_FLIGHT")
+  statusCode  Int?
+  response    String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([createdAt])
 }

@@ -11,6 +11,7 @@ import { reconcilePayouts, checkPayoutFloat } from "@/lib/ramp/payouts";
 import { pollCollections } from "@/lib/ramp/collections";
 import { turnkeyConfigured } from "@/lib/turnkey";
 import { monitor } from "@/lib/monitoring";
+import { sweepIdempotencyKeys } from "@/lib/idempotency";
 
 // Driven by a system cron on the VPS (every ~minute) with a bearer secret.
 // Runs one deposit-scan + withdrawal-processing pass per chain. Idempotent, and
@@ -31,13 +32,16 @@ export async function POST(req: NextRequest) {
   // Naira arriving over the bank rail. Runs alongside payouts rather than under
   // the custody gate: collections need the provider, not a chain.
   const collections = await pollCollections().catch((e) => ({ error: (e as Error).message }));
+  // Expired idempotency keys. Retention is deliberately short: the point is to
+  // absorb a retry, not to remember every request forever.
+  const idem = await sweepIdempotencyKeys().catch((e) => ({ error: (e as Error).message }));
 
   // Deposit scanning works under either custody backend Turnkey (addresses only)
   // or the HD seed. Only skip when neither is configured.
   if (!turnkeyConfigured() && !process.env.CUSTODY_MNEMONIC) {
     const health = await monitor().catch((e) => ({ error: (e as Error).message }));
     return Response.json({
-      ok: true, stops, alerts, staking, payouts, float, collections, health,
+      ok: true, stops, alerts, staking, payouts, float, collections, idem, health,
       reason: "custody not configured",
     });
   }
@@ -64,6 +68,6 @@ export async function POST(req: NextRequest) {
   ).catch((e) => ({ error: (e as Error).message }));
 
   return Response.json({
-    ok: true, stops, alerts, staking, payouts, float, collections, reconcile, health, chains,
+    ok: true, stops, alerts, staking, payouts, float, collections, idem, reconcile, health, chains,
   });
 }

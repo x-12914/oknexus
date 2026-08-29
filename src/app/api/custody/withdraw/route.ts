@@ -11,6 +11,7 @@ import {
 import { turnkeyConfigured } from "@/lib/turnkey";
 import { verifyTotpOnce, decryptSecret } from "@/lib/totp";
 import { rateLimit } from "@/lib/rate-limit";
+import { withIdempotency, idempotencyKeyFrom, IdempotencyConflict } from "@/lib/idempotency";
 
 const Schema = z.object({
   chain: z.string().optional(),
@@ -42,7 +43,15 @@ export async function POST(req: NextRequest) {
   if (!custodyReady()) {
     return Response.json({ error: "Custody is not configured yet." }, { status: 503 });
   }
-  const parsed = Schema.safeParse(await req.json());
+  // Read once as text: the idempotency hash must cover the exact bytes sent.
+  const rawText = await req.text();
+  let body: unknown;
+  try {
+    body = JSON.parse(rawText);
+  } catch {
+    return Response.json({ error: "Invalid request" }, { status: 400 });
+  }
+  const parsed = Schema.safeParse(body);
   if (!parsed.success) return Response.json({ error: "Invalid request" }, { status: 400 });
 
   const chain = parsed.data.chain || DEFAULT_CHAIN;
@@ -73,17 +82,30 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // The cap is asserted inside requestWithdrawal's transaction, under a
-    // per-user lock — checking it out here as well would just be a racy no-op.
-    const w = await requestWithdrawal(
+    // The one place a duplicate submit is unambiguously expensive: two
+    // withdrawals to the same address, both funded, both irreversible.
+    return await withIdempotency(
       userId,
-      chain,
-      parsed.data.symbol,
-      parsed.data.amount,
-      parsed.data.toAddress,
+      idempotencyKeyFrom(req),
+      "custody:withdraw",
+      rawText,
+      async () => {
+        // The cap is asserted inside requestWithdrawal's transaction, under a
+        // per-user lock — checking it out here as well would be a racy no-op.
+        const w = await requestWithdrawal(
+          userId,
+          chain,
+          parsed.data.symbol,
+          parsed.data.amount,
+          parsed.data.toAddress,
+        );
+        return Response.json({ id: w.id, status: w.status });
+      },
     );
-    return Response.json({ id: w.id, status: w.status });
   } catch (e) {
+    if (e instanceof IdempotencyConflict) {
+      return Response.json({ error: e.message }, { status: e.status });
+    }
     if (e instanceof DailyLimitError) return Response.json({ error: e.message }, { status: 400 });
     const msg = (e as Error).message;
     if (msg === "INSUFFICIENT_BALANCE") {
