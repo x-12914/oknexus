@@ -19,11 +19,10 @@ export function ApiKeysCard() {
   const [available, setAvailable] = useState(false);
   const [label, setLabel] = useState("");
   const [canTrade, setCanTrade] = useState(false);
-  const [canWithdraw, setCanWithdraw] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** Shown once, never retrievable again. */
-  const [fresh, setFresh] = useState<string | null>(null);
+  const [fresh, setFresh] = useState<{ key: string; secret: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -49,9 +48,9 @@ export function ApiKeysCard() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
-      const j = (await r.json()) as { key?: string; error?: string };
+      const j = (await r.json()) as { key?: string; secret?: string; error?: string };
       if (!r.ok) throw new Error(j.error ?? "Request failed");
-      if (j.key) setFresh(j.key);
+      if (j.key && j.secret) setFresh({ key: j.key, secret: j.secret });
       await refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -90,24 +89,36 @@ export function ApiKeysCard() {
         <div className="mt-4 rounded-lg border border-[var(--color-up)]/40 bg-[var(--color-up-bg)] p-3">
           {/* The only time this value exists outside a hash. */}
           <p className="text-xs font-medium text-[var(--color-up)]">
-            Copy this now — it won&apos;t be shown again.
+            Copy both now — they won&apos;t be shown again.
           </p>
-          <div className="mt-2 flex items-center gap-2">
-            <code className="min-w-0 flex-1 break-all font-mono text-xs text-[var(--color-foreground)]">
-              {fresh}
-            </code>
-            <button
-              type="button"
-              onClick={async () => {
-                await navigator.clipboard.writeText(fresh);
-                setCopied(true);
-              }}
-              className="shrink-0 text-[var(--color-muted)] hover:text-[var(--color-foreground)]"
-              aria-label="Copy key"
-            >
-              {copied ? <Check className="h-4 w-4 text-[var(--color-up)]" /> : <Copy className="h-4 w-4" />}
-            </button>
-          </div>
+          {/* The secret never leaves the server after this render: it is stored
+              encrypted and used only to verify signatures. */}
+          {([
+            ["API key", fresh.key],
+            ["Signing secret", fresh.secret],
+          ] as const).map(([label, value]) => (
+            <div key={label} className="mt-2">
+              <p className="text-[10px] uppercase tracking-wide text-[var(--color-muted)]">
+                {label}
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="min-w-0 flex-1 break-all font-mono text-xs text-[var(--color-foreground)]">
+                  {value}
+                </code>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(value);
+                    setCopied(true);
+                  }}
+                  className="shrink-0 text-[var(--color-muted)] hover:text-[var(--color-foreground)]"
+                  aria-label={`Copy ${label}`}
+                >
+                  {copied ? <Check className="h-4 w-4 text-[var(--color-up)]" /> : <Copy className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+          ))}
           <button
             type="button"
             onClick={() => {
@@ -163,10 +174,7 @@ export function ApiKeysCard() {
           className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-sm text-[var(--color-foreground)] outline-none"
         />
         <div className="flex flex-wrap gap-2">
-          {[
-            { on: canTrade, set: setCanTrade, label: "Allow trading" },
-            { on: canWithdraw, set: setCanWithdraw, label: "Allow withdrawals" },
-          ].map((p) => (
+          {[{ on: canTrade, set: setCanTrade, label: "Allow trading" }].map((p) => (
             <button
               key={p.label}
               type="button"
@@ -182,20 +190,18 @@ export function ApiKeysCard() {
             </button>
           ))}
         </div>
-        {canWithdraw && (
-          <p className="flex items-start gap-1.5 text-xs text-[var(--color-down)]">
-            <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            A key that can withdraw can move your funds. Only enable this if you genuinely need it.
-          </p>
-        )}
+        <p className="flex items-start gap-1.5 text-xs text-[var(--color-muted)]">
+          <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          Keys cannot withdraw. Moving funds programmatically needs an IP allowlist, so a leaked
+          key can read and trade but never drain your account.
+        </p>
         <button
           type="button"
           disabled={busy}
           onClick={() =>
-            run({ action: "create", label: label || "API key", canTrade, canWithdraw }).then(() => {
+            run({ action: "create", label: label || "API key", canTrade }).then(() => {
               setLabel("");
               setCanTrade(false);
-              setCanWithdraw(false);
             })
           }
           className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--color-accent-hover)] disabled:opacity-40"

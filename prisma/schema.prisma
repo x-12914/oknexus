@@ -680,6 +680,10 @@ model ApiKey {
   keyHash     String    @unique
   /// First few characters, so a user can tell their keys apart.
   prefix      String
+  /// AES-256-GCM signing secret. Encrypted rather than hashed because HMAC
+  /// verification needs the original value back; a hash would make signing
+  /// impossible. Shown to the user exactly once, at creation.
+  secretEnc   String?
   /// Read-only by default; trading and withdrawal are opt-in.
   canTrade    Boolean   @default(false)
   canWithdraw Boolean   @default(false)

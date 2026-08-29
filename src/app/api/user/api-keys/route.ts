@@ -23,7 +23,6 @@ const Body = z.discriminatedUnion("action", [
     action: z.literal("create"),
     label: z.string().max(60).optional(),
     canTrade: z.boolean().optional(),
-    canWithdraw: z.boolean().optional(),
   }),
   z.object({ action: z.literal("revoke"), id: z.string().min(3) }),
 ]);
@@ -41,12 +40,12 @@ export async function POST(req: NextRequest) {
 
   try {
     if (d.action === "create") {
-      // The plaintext key is in this response and nowhere else, ever again.
-      const { key, view } = await createApiKey(userId, d.label ?? "API key", {
+      // The key and its signing secret are in this response and nowhere else,
+      // ever again. The secret is encrypted at rest and never re-served.
+      const { key, secret, view } = await createApiKey(userId, d.label ?? "API key", {
         canTrade: d.canTrade,
-        canWithdraw: d.canWithdraw,
       });
-      return Response.json({ key, view });
+      return Response.json({ key, secret, view });
     }
     await revokeApiKey(userId, d.id);
     return Response.json({ ok: true });

@@ -2,6 +2,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { notify } from "@/lib/notifications";
+import { encryptSecret } from "@/lib/totp";
 
 /**
  * Programmatic access keys.
@@ -62,7 +63,7 @@ export async function createApiKey(
   userId: string,
   label: string,
   perms: { canTrade?: boolean; canWithdraw?: boolean } = {},
-): Promise<{ key: string; view: ApiKeyView }> {
+): Promise<{ key: string; secret: string; view: ApiKeyView }> {
   if (!apiKeysEnabled()) {
     throw new ApiKeyError("API access isn't available yet.");
   }
@@ -70,14 +71,22 @@ export async function createApiKey(
   if (existing >= 10) throw new ApiKeyError("You can have at most 10 active keys.");
 
   const key = PREFIX + randomBytes(24).toString("hex");
+  // The signing secret. Encrypted, not hashed: verifying an HMAC needs the
+  // original back. Returned once here and never retrievable again.
+  const secret = randomBytes(32).toString("hex");
   const row = await prisma.apiKey.create({
     data: {
       userId,
       label: label.trim().slice(0, 60) || "API key",
       keyHash: hash(key),
       prefix: key.slice(0, PREFIX.length + 6),
+      secretEnc: encryptSecret(secret),
       canTrade: Boolean(perms.canTrade),
-      canWithdraw: Boolean(perms.canWithdraw),
+      // Withdrawal over the API is deliberately not offered. Moving funds
+      // programmatically needs an IP allowlist and a withdrawal-address
+      // whitelist to be responsible, and neither exists yet. A key that cannot
+      // withdraw cannot drain an account if it leaks.
+      canWithdraw: false,
     },
   });
 
@@ -90,6 +99,7 @@ export async function createApiKey(
 
   return {
     key,
+    secret,
     view: {
       id: row.id,
       label: row.label,
@@ -111,8 +121,13 @@ export async function revokeApiKey(userId: string, id: string): Promise<void> {
   if (res.count === 0) throw new ApiKeyError("Key not found.");
 }
 
-/** Resolve a presented key. Returns null for unknown or revoked keys. */
-export async function resolveApiKey(presented: string) {
+/**
+ * Resolve a presented key to its row, signing secret included.
+ *
+ * Used by the request-signing layer. Returns null for unknown or revoked keys,
+ * so a caller cannot tell those two cases apart.
+ */
+export async function resolveApiKeyRow(presented: string) {
   if (!presented.startsWith(PREFIX)) return null;
   const row = await prisma.apiKey.findUnique({ where: { keyHash: hash(presented) } });
   if (!row || row.revokedAt) return null;
