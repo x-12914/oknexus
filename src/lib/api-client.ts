@@ -57,6 +57,8 @@ import type {
   AdminReserves,
 } from "@/lib/admin-types";
 
+import type { CorridorOption, CorridorCountry } from "@/lib/ramp/corridor-types";
+
 export interface NgnAccountView {
   accountNumber: string;
   accountName: string;
@@ -442,6 +444,15 @@ export const api = {
     ),
   adminAds: () =>
     fetch("/api/admin/data?view=ads", { cache: "no-store" }).then((r) => j<{ ads: AdminAd[] }>(r)),
+
+  payoutCorridors: () =>
+    fetch("/api/ramp/corridors", { cache: "no-store" }).then((r) =>
+      j<{ corridors: CorridorOption[] }>(r),
+    ),
+  payoutCorridorCountry: (code: string) =>
+    fetch(`/api/ramp/corridors?country=${encodeURIComponent(code)}`, { cache: "no-store" }).then(
+      (r) => j<{ country: CorridorCountry }>(r),
+    ),
 
   ngnAccount: () =>
     fetch("/api/ramp/ngn/account", { cache: "no-store" }).then((r) =>
