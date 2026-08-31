@@ -18,6 +18,9 @@ import {
   PiggyBank,
   Settings,
   Compass,
+  Gift,
+  Rocket,
+  Landmark,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/Logo";
@@ -39,6 +42,21 @@ export const NAV = [
   { href: "/fees", label: "Fees", icon: Receipt },
 ] as const;
 
+/**
+ * Products that exist as pages but aren't live yet.
+ *
+ * Kept in a separate group rather than mixed into the main list: nineteen flat
+ * entries is not a menu, and it would also put things you can't do beside
+ * things you can, which is the more expensive kind of confusion.
+ */
+export const MORE_NAV = [
+  { href: "/bills", label: "Bills Payment", icon: Receipt },
+  { href: "/gift-cards", label: "Gift Cards", icon: Gift },
+  { href: "/cards", label: "Crypto Cards", icon: CreditCard },
+  { href: "/launchpad", label: "Launchpad", icon: Rocket },
+  { href: "/institutional", label: "Institutional", icon: Landmark },
+] as const;
+
 export function SideNav() {
   const pathname = usePathname();
 
@@ -49,12 +67,36 @@ export function SideNav() {
           <Logo />
         </Link>
       </div>
-      <nav className="flex-1 p-3 space-y-1">
+      <nav className="flex-1 overflow-y-auto p-3 space-y-1">
         {NAV.map((item) => {
           const { href, label, icon: Icon } = item;
           const match = "match" in item ? item.match : undefined;
           const prefix = match ?? href;
           const active = pathname === href || pathname.startsWith(prefix);
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                active
+                  ? "bg-[rgba(139,92,246,0.14)] text-[var(--color-foreground)] ring-1 ring-inset ring-[rgba(139,92,246,0.35)]"
+                  : "text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)]",
+              )}
+            >
+              <Icon className={cn("h-4 w-4", active && "text-[var(--color-accent)]")} />
+              {label}
+            </Link>
+          );
+        })}
+
+        {/* Separated and labelled, so nothing here is mistaken for something
+            you can act on today. */}
+        <p className="px-3 pb-1 pt-5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+          More
+        </p>
+        {MORE_NAV.map(({ href, label, icon: Icon }) => {
+          const active = pathname.startsWith(href);
           return (
             <Link
               key={href}
