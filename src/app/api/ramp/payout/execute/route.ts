@@ -10,12 +10,27 @@ import { payoutRequiresKyc } from "@/lib/ramp/flags";
 import { requestPayout } from "@/lib/ramp/payouts";
 import { withIdempotency, idempotencyKeyFrom, IdempotencyConflict } from "@/lib/idempotency";
 
-const Schema = z.object({
-  payoutId: z.string().min(8),
-  bankCode: z.string().min(2).max(20),
-  accountNumber: z.string().min(4).max(34),
-  code: z.string().optional(),
-});
+// Either the proven Nigeria shape, or a corridor described the way the
+// provider describes it. Field values are checked server-side against that
+// corridor's published spec, so a client cannot bypass the format rules by
+// sending whatever it likes here.
+const Schema = z
+  .object({
+    payoutId: z.string().min(8),
+    bankCode: z.string().min(2).max(20).optional(),
+    accountNumber: z.string().min(4).max(34).optional(),
+    corridor: z
+      .object({
+        country: z.string().length(2),
+        destinationType: z.string().min(2).max(30),
+        fields: z.record(z.string(), z.string().max(120)),
+      })
+      .optional(),
+    code: z.string().optional(),
+  })
+  .refine((v) => Boolean(v.corridor) || Boolean(v.bankCode && v.accountNumber), {
+    message: "Provide a destination.",
+  });
 
 export async function POST(req: NextRequest) {
   const userId = await sessionUserId();
@@ -65,7 +80,7 @@ export async function POST(req: NextRequest) {
  */
 async function execute(
   userId: string,
-  input: { payoutId: string; bankCode: string; accountNumber: string; code?: string },
+  input: import("zod").infer<typeof Schema>,
 ): Promise<Response> {
   // Two-factor is REQUIRED here, not merely honoured when the user happens to have
   // switched it on. This route sends real money to a bank account and the transfer

@@ -105,6 +105,13 @@ export interface QuotePayoutInput {
   /** Supply exactly one side; the provider computes the other. */
   fromAmount?: number;
   fiatAmount?: number;
+  /**
+   * Destination corridor. Both default to Nigeria, which is the corridor that
+   * has actually moved money — so an existing caller passing neither gets
+   * exactly the request it got before.
+   */
+  country?: string;
+  fiatCode?: string;
 }
 
 export async function quotePayout(input: QuotePayoutInput): Promise<PayoutQuote> {
@@ -119,8 +126,8 @@ export async function quotePayout(input: QuotePayoutInput): Promise<PayoutQuote>
   }
 
   const body: Record<string, string> = {
-    country: COUNTRY,
-    to_currency: FIAT,
+    country: input.country ?? COUNTRY,
+    to_currency: input.fiatCode ?? FIAT,
     from_asset: fromSymbol,
     source: "offchain", // debit our provider float rather than an on-chain send
   };
@@ -263,10 +270,23 @@ export interface ExecutePayoutInput {
    * is undocumented and cost a long afternoon; do not "tidy" it into one id.
    */
   quoteId: string;
-  bankCode: string;
-  accountNumber: string;
+  /** Nigeria's bank shape. Kept for the corridor that is already proven. */
+  bankCode?: string;
+  accountNumber?: string;
   /** Provider-resolved holder name, not user-supplied. */
-  accountName: string;
+  accountName?: string;
+  /** Corridor, when it is not the default Nigeria one. */
+  country?: string;
+  /** "bank" | "mobile_money" | "paybill" | "swift" | … */
+  destinationType?: string;
+  /**
+   * Field values keyed exactly as the provider named them.
+   *
+   * They publish the field keys per destination, so passing them straight
+   * through is both correct and the only version that keeps working when a
+   * corridor changes its requirements.
+   */
+  fields?: Record<string, string>;
 }
 
 /**
@@ -284,15 +304,24 @@ export async function executePayout(input: ExecutePayoutInput): Promise<string |
   // Recipient details go under `beneficiary`. The API rejects anything else
   // with "beneficiary_info is required", which names an internal field rather
   // than the one it actually accepts.
-  const init = await initializePayout(input.quoteId, {
-    beneficiary: {
-      destination_type: "bank",
-      country: COUNTRY,
-      bank_code: input.bankCode,
-      account_number: input.accountNumber,
-      account_name: input.accountName,
-    },
-  });
+  // Two shapes, one deliberately unchanged. A caller supplying `fields` gets
+  // the generic corridor form; everyone else gets the exact body that has
+  // already settled real naira, rather than a refactored equivalent of it.
+  const beneficiary = input.fields
+    ? {
+        destination_type: input.destinationType ?? "bank",
+        country: input.country ?? COUNTRY,
+        ...input.fields,
+      }
+    : {
+        destination_type: "bank",
+        country: COUNTRY,
+        bank_code: input.bankCode,
+        account_number: input.accountNumber,
+        account_name: input.accountName,
+      };
+
+  const init = await initializePayout(input.quoteId, { beneficiary });
   if (!init.ok) {
     throw new PayoutStepError("initialize", init.error ?? "Could not initialize the payout");
   }

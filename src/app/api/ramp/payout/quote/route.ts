@@ -9,6 +9,9 @@ const QuoteSchema = z
     fromSymbol: z.string().min(2).max(10),
     fromAmount: z.number().positive().finite().optional(),
     fiatAmount: z.number().positive().finite().optional(),
+    /** Corridor. Omitted means Nigeria, which is what every caller sent before. */
+    country: z.string().length(2).optional(),
+    fiatCode: z.string().length(3).optional(),
   })
   .refine((v) => (v.fromAmount === undefined) !== (v.fiatAmount === undefined), {
     message: "Provide exactly one of fromAmount or fiatAmount",
@@ -38,17 +41,21 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const config = await getPayoutConfig();
-    const { fiatAmount } = parsed.data;
-    // Check the destination-side bound before calling out, so an obviously
-    // out-of-range amount fails fast with a message naming the actual limit.
-    if (fiatAmount !== undefined && (fiatAmount < config.minFiat || fiatAmount > config.maxFiat)) {
-      return Response.json(
-        {
-          error: `Amount must be between ${config.minFiat.toLocaleString()} and ${config.maxFiat.toLocaleString()} ${config.fiatCode}.`,
-        },
-        { status: 400 },
-      );
+    const { fiatAmount, country } = parsed.data;
+    // Bound-check against the corridor being quoted. Only the Nigeria config
+    // carries min/max in this shape; other corridors publish their limits per
+    // destination, which the picker already enforces, and the provider rejects
+    // an out-of-range amount regardless.
+    if (!country || country.toUpperCase() === "NG") {
+      const config = await getPayoutConfig();
+      if (fiatAmount !== undefined && (fiatAmount < config.minFiat || fiatAmount > config.maxFiat)) {
+        return Response.json(
+          {
+            error: `Amount must be between ${config.minFiat.toLocaleString()} and ${config.maxFiat.toLocaleString()} ${config.fiatCode}.`,
+          },
+          { status: 400 },
+        );
+      }
     }
     return Response.json(await quotePayout(parsed.data));
   } catch (e) {

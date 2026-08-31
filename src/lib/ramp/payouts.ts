@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { withLedger, lock, unlock, settleLocked, quantize } from "@/lib/ledger";
 import { notify } from "@/lib/notifications";
 import { assertWithinDailyLimit, usdPriceMap } from "@/lib/custody/withdrawals";
+import { getCorridorCountry } from "./corridor-config";
 import {
   fetchQuote,
   executePayout,
@@ -55,8 +56,104 @@ function toView(p: PayoutRow): FiatPayoutView {
 export interface RequestPayoutInput {
   /** The provider's payout uuid from the quote. Amounts are re-read, not trusted. */
   payoutId: string;
-  bankCode: string;
-  accountNumber: string;
+  /** Nigeria's bank shape — the corridor that has actually settled money. */
+  bankCode?: string;
+  accountNumber?: string;
+  /**
+   * Any other corridor, described the way the provider describes it.
+   *
+   * Only the destination-validation step differs between corridors; every gate
+   * around it — allowlist, KYC, authoritative quote re-read, margin check,
+   * per-user lock, daily cap, claim-before-execute — is corridor-agnostic and
+   * deliberately shared. Duplicating this function per corridor would have
+   * duplicated ten safety checks to vary two.
+   */
+  corridor?: {
+    country: string;
+    destinationType: string;
+    fields: Record<string, string>;
+  };
+}
+
+/** What a corridor resolved to: a display label and the fields to send. */
+interface ResolvedDestination {
+  label: string;
+  accountRef: string;
+  country?: string;
+  destinationType?: string;
+  fields?: Record<string, string>;
+  bankCode?: string;
+  accountNumber?: string;
+  accountName?: string;
+}
+
+/**
+ * Validate the destination and work out what to send.
+ *
+ * Nigeria keeps its existing treatment, including the server-side holder
+ * lookup — that is the last cheap chance to catch a mistyped account number
+ * before funds are locked, and it is the corridor that has actually paid out.
+ *
+ * Other corridors validate against the field spec the provider publishes for
+ * that destination, so a Kenyan M-Pesa number is checked with Kenya's regex
+ * rather than something we guessed.
+ */
+async function resolveDestination(input: RequestPayoutInput): Promise<ResolvedDestination> {
+  if (!input.corridor) {
+    const config = await getPayoutConfig();
+    const bank = config.banks.find((b) => b.code === input.bankCode);
+    if (!bank) throw new Error("Select a valid bank.");
+    if (!input.accountNumber || !new RegExp(config.fields.accountPattern).test(input.accountNumber)) {
+      throw new Error("That account number isn't valid for this country.");
+    }
+    const resolved = await lookupAccount(bank.code, input.accountNumber);
+    return {
+      label: bank.name,
+      accountRef: input.accountNumber,
+      country: config.country,
+      bankCode: bank.code,
+      accountNumber: input.accountNumber,
+      accountName: resolved.accountName,
+    };
+  }
+
+  const { country, destinationType, fields } = input.corridor;
+  const spec = await getCorridorCountry(country);
+  const destination = spec.destinations.find((d) => d.key === destinationType);
+  if (!destination) throw new Error("That payout method isn't available for this country.");
+
+  for (const f of destination.fields) {
+    const v = (fields[f.key] ?? "").trim();
+    if (!v) {
+      if (f.required) throw new Error(`${f.label} is required.`);
+      continue;
+    }
+    // A pattern we cannot compile must not block a legitimate payout — the
+    // provider validates again, and refusing on our own regex error is worse.
+    if (f.pattern) {
+      let re: RegExp | null = null;
+      try {
+        re = new RegExp(f.pattern);
+      } catch {
+        re = null;
+      }
+      if (re && !re.test(v)) throw new Error(f.description ?? `${f.label} isn't valid.`);
+    }
+  }
+
+  // Whatever the corridor calls the recipient's identifier, for display and
+  // masking. Falls back to the first value so a record is never anonymous.
+  const accountRef =
+    fields.account_number ?? fields.phone_number ?? Object.values(fields)[0] ?? "";
+
+  return {
+    label: `${spec.name} · ${destination.label}`,
+    accountRef,
+    country,
+    destinationType,
+    fields,
+    accountName: fields.account_name,
+  };
 }
 
 /**
@@ -110,19 +207,7 @@ export async function requestPayout(
     throw new Error("Verify your identity before withdrawing to a bank account.");
   }
 
-  const config = await getPayoutConfig();
-
-  const bank = config.banks.find((b) => b.code === input.bankCode);
-  if (!bank) throw new Error("Select a valid bank.");
-  if (!new RegExp(config.fields.accountPattern).test(input.accountNumber)) {
-    throw new Error("That account number isn't valid for this country.");
-  }
-
-  // Resolve the holder server-side rather than accepting a name from the client.
-  // This is also the last cheap chance to catch a mistyped account number: an
-  // unresolvable account would fail at the provider anyway, but only after the
-  // funds had been locked.
-  const resolved = await lookupAccount(bank.code, input.accountNumber);
+  const dest = await resolveDestination(input);
 
   // Authoritative re-read. The client sends only an id, so it cannot inflate the
   // amount, change the asset, or replay a stale price.
@@ -178,18 +263,18 @@ export async function requestPayout(
           effectiveRate: quote.effectiveRate,
           feeFiat: quote.feeFiat,
           platformFee,
-          country: config.country,
-          bankCode: bank.code,
-          bankName: bank.name,
-          accountNumber: input.accountNumber,
-          accountName: resolved.accountName,
+          country: dest.country ?? "NG",
+          bankCode: dest.bankCode ?? dest.destinationType ?? "",
+          bankName: dest.label,
+          accountNumber: dest.accountRef,
+          accountName: dest.accountName ?? dest.label,
           status: "REQUESTED",
         },
       });
       await lock(tx, userId, quote.fromSymbol, amount, {
         type: LedgerType.RAMP,
         refId: created.id,
-        memo: `Payout ${quote.fiatCode} to ${bank.name}`,
+        memo: `Payout ${quote.fiatCode} to ${dest.label}`,
       });
       return created;
     });
@@ -214,9 +299,12 @@ export async function requestPayout(
     const providerId = await executePayout({
       // initialize/finalize take the QT2_ quote id; only GET takes the uuid.
       quoteId: quote.quoteId,
-      bankCode: bank.code,
-      accountNumber: input.accountNumber,
-      accountName: resolved.accountName,
+      bankCode: dest.bankCode,
+      accountNumber: dest.accountNumber,
+      accountName: dest.accountName,
+      country: dest.country,
+      destinationType: dest.destinationType,
+      fields: dest.fields,
     });
     // Track whatever id the provider hands back, so the reconciler polls the
     // record the payout actually lives on rather than the one we quoted.
@@ -271,7 +359,7 @@ export async function requestPayout(
   await notify(userId, {
     type: "WITHDRAWAL",
     title: "Payout submitted",
-    body: `${quote.fiatAmount.toLocaleString()} ${quote.fiatCode} to ${bank.name} ${maskAccount(input.accountNumber)} is being processed.`,
+    body: `${quote.fiatAmount.toLocaleString()} ${quote.fiatCode} to ${dest.label} ${maskAccount(dest.accountRef)} is being processed.`,
     href: "/withdraw",
   });
 
