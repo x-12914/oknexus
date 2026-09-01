@@ -1,4 +1,5 @@
 import { BinanceConnector } from "./binance-connector";
+import { KrakenConnector } from "./kraken-connector";
 import { CoinGeckoConnector } from "./coingecko-connector";
 import { MockExchangeConnector } from "./mock-connector";
 import type { ExchangeConnector } from "./types";
@@ -7,11 +8,17 @@ let cached: ExchangeConnector | undefined;
 
 export function getExchange(): ExchangeConnector {
   if (cached) return cached;
-  // Binance by default. CoinGecko's demo tier allows 10,000 calls a MONTH, which
-  // an 8-second price cache exhausts in under a day — so holding a CoinGecko key
-  // is no longer reason enough to route prices through it. Opt in explicitly
-  // with EXCHANGE_CONNECTOR=coingecko, and only on a paid tier.
-  const id = process.env.EXCHANGE_CONNECTOR ?? "binance";
+  // Kraken by default.
+  //
+  // Binance answers our servers with HTTP 451 — geo-blocked by region — so it
+  // silently supplied nothing while CoinGecko covered prices and the order
+  // book, trade tape and candles fell through to generated data. Kraken
+  // answers, with a real book.
+  //
+  // CoinGecko's demo tier allows 10,000 calls a MONTH, which an 8-second price
+  // cache exhausts in under a day, so holding a key is not reason enough to
+  // route prices through it. Opt in explicitly, and only on a paid tier.
+  const id = process.env.EXCHANGE_CONNECTOR ?? "kraken";
   switch (id) {
     case "mock":
       cached = new MockExchangeConnector();
@@ -20,9 +27,12 @@ export function getExchange(): ExchangeConnector {
       cached = new CoinGeckoConnector();
       break;
     case "binance":
+      cached = new BinanceConnector();
+      break;
+    case "kraken":
     case "real":
     default:
-      cached = new BinanceConnector();
+      cached = new KrakenConnector();
   }
   return cached;
 }

@@ -72,6 +72,8 @@ async function fetchMarkets(): Promise<Map<string, CgMarket>> {
 }
 
 export class CoinGeckoConnector extends BinanceConnector {
+  readonly id = "coingecko";
+
   override async getTicker(symbol: string): Promise<Ticker> {
     const base = symbol.split("/")[0];
     const id = CG_ID[base];

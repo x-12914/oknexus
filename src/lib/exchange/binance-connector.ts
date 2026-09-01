@@ -84,6 +84,8 @@ function toLevels(rows: [string, string][], depth: number): OrderBookLevel[] {
 }
 
 export class BinanceConnector extends MockExchangeConnector {
+  readonly id: string = "binance";
+
   // Live USD reference price feeding the swap/ramp/OTC quote engines. Reuses
   // getTicker (cached + mock fallback), so quotes match the live trade page.
   protected override async priceOf(symbol: string): Promise<number> {

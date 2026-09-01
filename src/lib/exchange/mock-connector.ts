@@ -335,7 +335,11 @@ const ORDERS = new Map<string, StoredOrder>();
 let orderCounter = 1;
 
 export class MockExchangeConnector implements ExchangeConnector {
-  readonly id = "mock";
+  // Typed as string, not the literal, so subclasses can say what they actually
+  // are. Left as a literal, every connector inherited the id "mock" — which is
+  // precisely the wrong answer when you are trying to work out which source
+  // served a request.
+  readonly id: string = "mock";
 
   async listMarkets(): Promise<MarketInfo[]> {
     return MARKETS;
