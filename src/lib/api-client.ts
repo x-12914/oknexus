@@ -295,7 +295,14 @@ export const api = {
       j<{ configured: boolean; config: PayoutConfig | null }>(r),
     ),
 
-  payoutQuote: (input: { fromSymbol: string; fromAmount?: number; fiatAmount?: number }) =>
+  payoutQuote: (input: {
+    fromSymbol: string;
+    fromAmount?: number;
+    fiatAmount?: number;
+    /** Omitted means Nigeria, the corridor these calls always meant before. */
+    country?: string;
+    fiatCode?: string;
+  }) =>
     fetch("/api/ramp/payout/quote", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -325,8 +332,9 @@ export const api = {
 
   payoutExecute: (input: {
     payoutId: string;
-    bankCode: string;
-    accountNumber: string;
+    bankCode?: string;
+    accountNumber?: string;
+    corridor?: { country: string; destinationType: string; fields: Record<string, string> };
     code?: string;
   }) =>
     fetch("/api/ramp/payout/execute", {

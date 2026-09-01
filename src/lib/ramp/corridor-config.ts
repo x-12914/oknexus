@@ -140,9 +140,13 @@ export async function listCorridorOptions(): Promise<CorridorOption[]> {
       });
     }
   }
+  // Nigeria is served by its own panel, which resolves the account holder's
+  // name server-side. Listing it here too would offer the same corridor by a
+  // weaker route.
+  const rest = out.filter((c) => c.currency !== "NGN");
   // Proven corridors first, then alphabetically — a user scanning the list
   // should meet what actually works before what merely exists.
-  return out.sort(
+  return rest.sort(
     (a, b) =>
       Number(b.proven) - Number(a.proven) || a.countryName.localeCompare(b.countryName),
   );
