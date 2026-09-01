@@ -181,6 +181,24 @@ export async function runHealthChecks(ctx: HealthContext = {}): Promise<CheckRes
     }),
   );
 
+  // Whether the order book, trade tape and candles are real.
+  //
+  // The chain is CoinGecko -> Binance -> mock. CoinGecko carries no book or
+  // tape, so those come from Binance — and Binance answers this server with
+  // HTTP 451, geo-blocking the region. The chain then lands on synthesised
+  // data, silently, on a live trading screen. Prices stay roughly right, which
+  // is exactly why nobody noticed.
+  checks.push(
+    check("marketdata:synthetic", "critical", "Order book and trades are synthetic", async () => {
+      const t = await getExchange().getTicker("BTC/USDT");
+      // A real venue always quotes a spread. Bid equal to ask means whatever
+      // served this has no book behind it.
+      return t.bid > 0 && t.ask > 0 && t.bid === t.ask
+        ? "No live order book — depth, trades and candles are generated, not market data"
+        : null;
+    }),
+  );
+
   return Promise.all(checks);
 }
 
