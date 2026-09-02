@@ -18,6 +18,24 @@ import { mnemonicToAccount } from "viem/accounts";
 import type { ChainAdapter, ChainConfig, OnChainDeposit, TokenConfig } from "./types";
 import { turnkeyConfigured, signEvmTransaction } from "@/lib/turnkey";
 
+/**
+ * The hot wallet cannot cover a gas top-up. Typed so the sweep can stop for the
+ * pass on the first occurrence instead of failing identically per address.
+ */
+export class HotWalletEmptyError extends Error {
+  constructor(readonly needWei: bigint, readonly haveWei: bigint) {
+    super(
+      `Hot wallet holds ${formatEther(haveWei)} ETH but a gas top-up needs ${formatEther(needWei)} ETH`,
+    );
+  }
+}
+
+export type TokenSweepOutcome =
+  | { kind: "swept"; txHash: string; amount: number }
+  /** Gas was sent to the address; the token moves on the next pass. */
+  | { kind: "funded"; txHash: string; wei: bigint }
+  | null;
+
 const TRANSFER_EVENT = parseAbiItem(
   "event Transfer(address indexed from, address indexed to, uint256 value)",
 );
@@ -293,6 +311,118 @@ export class EvmAdapter implements ChainAdapter {
     const serializedTransaction = (signed.startsWith("0x") ? signed : `0x${signed}`) as `0x${string}`;
     const txHash = await pub.sendRawTransaction({ serializedTransaction });
     return { txHash, amount: Number(formatEther(value)) };
+  }
+
+  /**
+   * Sweep one ERC-20 balance from a per-user deposit address into the hot wallet.
+   *
+   * The catch with tokens is that moving them costs ETH, and a deposit address
+   * that only ever received USDT has none. So this is a two-step machine spread
+   * across cron passes:
+   *
+   *   pass N    address has the token but not the gas -> hot wallet sends the
+   *             shortfall, and we return "funded"
+   *   pass N+1  address now has gas -> it signs the transfer, we return "swept"
+   *
+   * Not waiting for the top-up to confirm is deliberate. A minute of treasury
+   * latency costs nothing; a receipt wait inside a once-a-minute cron is a
+   * timeout waiting to happen. The pending-balance read is what stops pass N+1
+   * from funding again while pass N's top-up is still in the mempool.
+   *
+   * Every leg is signed by Turnkey for the address that pays, exactly as the
+   * native sweep is. The existing sendWithdrawal and sweepNativeToHot paths are
+   * untouched: both have moved real funds and this shares no code with them.
+   */
+  async sweepTokenToHot(
+    from: `0x${string}`,
+    token: TokenConfig,
+  ): Promise<TokenSweepOutcome> {
+    const hot = this.turnkeyHotAddress();
+    if (from.toLowerCase() === hot.toLowerCase()) return null;
+    const pub = this.pub();
+    const contract = token.address as `0x${string}`;
+
+    const balance = (await pub.readContract({
+      address: contract,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [from],
+    })) as bigint;
+    // Below this it costs more in gas than it moves. Denominated in the token,
+    // which for the stablecoins this exists for means dollars.
+    const minSweep = parseUnits(process.env.EVM_MIN_TOKEN_SWEEP ?? "10", token.decimals);
+    if (balance < minSweep) return null;
+
+    const data = encodeFunctionData({
+      abi: erc20Abi,
+      functionName: "transfer",
+      args: [hot, balance],
+    });
+    const fees = await pub.estimateFeesPerGas();
+    let gas: bigint;
+    try {
+      gas = await pub.estimateGas({ account: from, to: contract, data });
+    } catch {
+      // A node may refuse to simulate for an account with no ETH. 100k covers
+      // every mainstream ERC-20 transfer with room to spare.
+      gas = BigInt(100000);
+    }
+    const gasCost = gas * fees.maxFeePerGas;
+
+    // Pending, not latest: a top-up sent last pass may not be mined yet, and
+    // reading the confirmed balance would fund it a second time.
+    const ethPending = await pub.getBalance({ address: from, blockTag: "pending" });
+
+    if (ethPending < gasCost) {
+      // Send the shortfall plus a fifth, since fees move between now and the
+      // sweep. Whatever is left over is dust at an address we control.
+      const target = (gasCost * BigInt(120)) / BigInt(100);
+      const shortfall = target - ethPending;
+      const topUpGas = BigInt(21000);
+      const hotBalance = await pub.getBalance({ address: hot });
+      const hotNeeds = shortfall + topUpGas * fees.maxFeePerGas;
+      if (hotBalance < hotNeeds) throw new HotWalletEmptyError(hotNeeds, hotBalance);
+
+      const txHash = await this.sendSigned(hot, {
+        to: from,
+        value: shortfall,
+        gas: topUpGas,
+        fees,
+      });
+      return { kind: "funded", txHash, wei: shortfall };
+    }
+
+    const txHash = await this.sendSigned(from, { to: contract, value: BigInt(0), data, gas, fees });
+    return { kind: "swept", txHash, amount: Number(formatUnits(balance, token.decimals)) };
+  }
+
+  /** Build, Turnkey-sign and broadcast one EIP-1559 transaction from `from`. */
+  private async sendSigned(
+    from: `0x${string}`,
+    tx: {
+      to: `0x${string}`;
+      value: bigint;
+      gas: bigint;
+      data?: `0x${string}`;
+      fees: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint };
+    },
+  ): Promise<string> {
+    const pub = this.pub();
+    const nonce = await pub.getTransactionCount({ address: from, blockTag: "pending" });
+    const unsigned = serializeTransaction({
+      chainId: CHAIN.id,
+      type: "eip1559",
+      nonce,
+      to: tx.to,
+      value: tx.value,
+      data: tx.data,
+      gas: tx.gas,
+      maxFeePerGas: tx.fees.maxFeePerGas,
+      maxPriorityFeePerGas: tx.fees.maxPriorityFeePerGas,
+    });
+    const signed = await signEvmTransaction(from, unsigned.slice(2));
+    const serializedTransaction = (signed.startsWith("0x") ? signed : `0x${signed}`) as `0x${string}`;
+    return pub.sendRawTransaction({ serializedTransaction });
   }
 
   /**

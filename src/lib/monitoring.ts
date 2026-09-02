@@ -4,7 +4,8 @@ import { notify } from "@/lib/notifications";
 import { audit } from "@/lib/audit";
 import { getExchange } from "@/lib/exchange";
 import { bitnobConfigured, bitnobWhoami, getCompanyBalances } from "@/lib/bitnob";
-import { getChainAdapter, ALL_CHAINS } from "@/lib/custody/registry";
+import { getChainAdapter, ALL_CHAINS, EVM_CHAIN } from "@/lib/custody/registry";
+import { turnkeyConfigured } from "@/lib/turnkey";
 import { reconcileAll } from "@/lib/custody/reconcile";
 
 /**
@@ -198,6 +199,23 @@ export async function runHealthChecks(ctx: HealthContext = {}): Promise<CheckRes
         : null;
     }),
   );
+
+  // Gas in the hot wallet. It pays for every outbound withdrawal and for every
+  // ERC-20 sweep top-up, and it was sitting at exactly zero with no alert —
+  // which meant a customer's withdrawal would have failed on the first attempt
+  // and nobody would have known until they wrote in.
+  const hot = process.env.TURNKEY_EVM_HOT_ADDRESS;
+  if (turnkeyConfigured() && hot && ALL_CHAINS.includes(EVM_CHAIN)) {
+    checks.push(
+      check("hotwallet:low", "warning", "Hot wallet is low on gas", async () => {
+        const eth = await getChainAdapter(EVM_CHAIN).getBalance(hot, "ETH");
+        const floor = Number(process.env.EVM_HOT_MIN_ETH ?? "0.01");
+        return eth < floor
+          ? `${eth} ETH in the hot wallet — withdrawals and token sweeps will fail below ${floor}`
+          : null;
+      }),
+    );
+  }
 
   return Promise.all(checks);
 }
