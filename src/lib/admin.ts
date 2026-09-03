@@ -66,11 +66,17 @@ export async function listUsers(): Promise<AdminUser[]> {
       name: true,
       role: true,
       kycStatus: true,
+      kycBasicStatus: true,
       suspended: true,
       createdAt: true,
       kycLegalName: true,
       kycCountry: true,
       kycIdNumber: true,
+      kycSessions: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { level: true, amlStatus: true, amlScore: true },
+      },
     },
   });
   return users.map((u) => ({
@@ -79,6 +85,10 @@ export async function listUsers(): Promise<AdminUser[]> {
     name: u.name,
     role: u.role,
     kycStatus: u.kycStatus,
+    kycBasicStatus: u.kycBasicStatus,
+    kycRoute: u.kycSessions[0]?.level ?? null,
+    amlStatus: u.kycSessions[0]?.amlStatus ?? null,
+    amlScore: u.kycSessions[0]?.amlScore ?? null,
     suspended: u.suspended,
     createdAt: u.createdAt.getTime(),
     kycLegalName: u.kycLegalName,

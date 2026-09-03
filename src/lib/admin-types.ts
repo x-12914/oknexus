@@ -22,6 +22,13 @@ export interface AdminUser {
   name: string | null;
   role: string;
   kycStatus: string;
+  /** NIN-register tier; never unlocks fiat. */
+  kycBasicStatus: string;
+  /** Route of the most recent verification session: basic | bvn | full. */
+  kycRoute: string | null;
+  /** Server-side sanctions screening on that session, when it ran. */
+  amlStatus: string | null;
+  amlScore: number | null;
   suspended: boolean;
   createdAt: number;
   kycLegalName: string | null;

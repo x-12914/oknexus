@@ -58,6 +58,7 @@ import type {
 } from "@/lib/admin-types";
 
 import type { CorridorOption, CorridorCountry } from "@/lib/ramp/corridor-types";
+import type { OnrampOrderView, OnrampProviderInfo } from "@/lib/onramp/types";
 
 export interface NgnAccountView {
   accountNumber: string;
@@ -438,6 +439,19 @@ export const api = {
     }).then((r) =>
       mutate<{ url: string }>(r, "Could not start verification"),
     ),
+
+  // ---- Fiat on-ramp (card / bank -> crypto to the user's deposit address) ----
+  onrampProviders: () =>
+    fetch("/api/onramp/providers", { cache: "no-store" }).then((r) =>
+      mutate<{ providers: OnrampProviderInfo[]; orders: OnrampOrderView[] }>(r, "Could not load"),
+    ),
+
+  onrampSession: (input: { provider: string; fiatCode: string; fiatAmount?: number; cryptoSymbol: string }) =>
+    fetch("/api/onramp/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    }).then((r) => mutate<{ url: string; orderId: string }>(r, "Could not start the purchase")),
 
   // ---- Admin ----
   adminOverview: () =>

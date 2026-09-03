@@ -66,12 +66,42 @@ model User {
   antiPhishingCode    String?
   apiKeys             ApiKey[]
   idempotencyKeys     IdempotencyKey[]
+  onrampOrders        OnrampOrder[]
 }
 
 enum UserRole {
   USER
   ADMIN
   SUPPORT
+}
+
+/// A fiat-to-crypto purchase handed to an on-ramp provider. The crypto is
+/// delivered on-chain to the user's own deposit address, so crediting happens
+/// through the deposit scanner like any other deposit; this row only tracks the
+/// purchase so the user can see where it stands.
+model OnrampOrder {
+  id           String   @id @default(cuid())
+  userId       String
+  provider     String // "alchemypay" | "onramper"
+  /// Our reference, handed to the provider; how their callback finds this row.
+  providerRef  String   @unique
+  /// The provider's own order id, once they tell us.
+  externalId   String?
+  fiatCode     String
+  fiatAmount   Decimal? @db.Decimal(30, 10)
+  cryptoSymbol String
+  chain        String
+  address      String
+  cryptoAmount Decimal? @db.Decimal(30, 10)
+  status       String   @default("CREATED") // CREATED | PENDING | PAID | COMPLETED | FAILED | EXPIRED
+  txHash       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([externalId])
 }
 
 /// A hosted identity-verification session with a provider (Didit) — links the

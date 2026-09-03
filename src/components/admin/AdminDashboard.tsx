@@ -168,6 +168,11 @@ function UsersTab() {
                   >
                     {u.kycStatus === "REVIEW" ? "REVIEW · AML" : u.kycStatus}
                   </span>
+                  {u.kycBasicStatus === "APPROVED" && u.kycStatus !== "APPROVED" ? (
+                    <span className="rounded bg-[var(--color-surface-2)] px-1 text-[10px] text-[var(--color-muted)]">
+                      Basic
+                    </span>
+                  ) : null}
                   {u.kycStatus === "PENDING" || u.kycStatus === "REVIEW" ? (
                     <>
                       <button
@@ -194,6 +199,16 @@ function UsersTab() {
                 {u.kycLegalName ? (
                   <div className="text-[11px] text-[var(--color-muted)] mt-0.5">
                     {u.kycLegalName} · {u.kycCountry} · {u.kycIdNumber}
+                  </div>
+                ) : null}
+                {/* Why someone is in the queue: the route they took and what the
+                    sanctions screen said. Reads from the latest session. */}
+                {u.kycRoute || u.amlStatus ? (
+                  <div className="text-[11px] text-[var(--color-muted)] mt-0.5">
+                    {u.kycRoute ? `via ${u.kycRoute}` : null}
+                    {u.amlStatus
+                      ? `${u.kycRoute ? " · " : ""}AML ${u.amlStatus}${u.amlScore != null ? ` (${u.amlScore})` : ""}`
+                      : null}
                   </div>
                 ) : null}
               </td>

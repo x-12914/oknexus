@@ -5,6 +5,7 @@ import { audit } from "@/lib/audit";
 import { getExchange } from "@/lib/exchange";
 import { bitnobConfigured, bitnobWhoami, getCompanyBalances } from "@/lib/bitnob";
 import { getChainAdapter, ALL_CHAINS, EVM_CHAIN } from "@/lib/custody/registry";
+import { tokensMisconfigured } from "@/lib/custody/evm";
 import { turnkeyConfigured } from "@/lib/turnkey";
 import { reconcileAll } from "@/lib/custody/reconcile";
 
@@ -69,6 +70,16 @@ export async function runHealthChecks(ctx: HealthContext = {}): Promise<CheckRes
       const t = await getExchange().getTicker("BTC/USDT");
       return t.last > 0 ? null : "Ticker returned a zero price";
     }),
+  );
+
+  // A token list that is set but unreadable means every stablecoin deposit is
+  // silently ignored. That has happened; it must never be quiet again.
+  checks.push(
+    check("custody:tokens", "critical", "ERC-20 token list misconfigured", async () =>
+      tokensMisconfigured()
+        ? "EVM_TOKENS is set but cannot be parsed: USDT/USDC deposits are not being scanned"
+        : null,
+    ),
   );
 
   // Chain RPC, per enabled chain. A stalled tip means deposits stop crediting.

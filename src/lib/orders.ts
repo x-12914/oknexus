@@ -14,6 +14,8 @@ import type { OrderResult, PlaceOrderInput } from "@/lib/exchange/types";
 //   • MARKET            → fills immediately at best ask/bid.
 //   • marketable LIMIT  → fills immediately at the limit price.
 //   • resting LIMIT     → rests OPEN with funds LOCKED; cancel returns them.
+//                          lib/matcher.ts fills it (fully or partially, at the
+//                          maker rate) once live depth reaches its price.
 //   • STOP / STOP_LIMIT → rest PENDING (no funds locked) until the trigger price
 //                          is hit; a cron pass (processStopTriggers) then fires
 //                          them into a market fill / limit order.
@@ -45,8 +47,8 @@ function toResult(o: Order, symbol: string): OrderResult {
  * the trader's 30-day volume tier. Market.makerFee/takerFee are no longer
  * consulted — the fee schedule in lib/fees.ts is the single source of truth.
  *
- * Every fill here is a taker fill: there is no resting-order matcher yet, so
- * nothing is ever filled as a maker. When one exists, pass the maker rate.
+ * Every fill here is a taker fill. Maker fills of resting orders happen in
+ * lib/matcher.ts, which settles from locked funds at the maker rate.
  */
 async function applyFill(
   tx: Tx,
@@ -114,8 +116,8 @@ export async function placeOrder(input: PlaceOrderInput): Promise<OrderResult> {
   const { base, quote } = meta;
 
   // The trader's rate comes from their 30-day volume tier, resolved before the
-  // transaction opens. Every fill below is a taker fill — there is no resting
-  // matcher, so nothing is ever filled as a maker.
+  // transaction opens. Every fill below is a taker fill; resting orders are
+  // filled later by the matcher at the maker rate.
   const { takerPct } = await getFeeProfile(userId);
 
   // Stop / stop-limit: rest as PENDING until the trigger is hit. No funds are

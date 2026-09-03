@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { ArrowRight, Banknote } from "lucide-react";
 import { RampCard } from "@/components/ramp/RampCard";
+import { BuyCryptoPanel } from "@/components/onramp/BuyCryptoPanel";
 import { simulatedRampEnabled } from "@/lib/ramp/flags";
+import { onrampAvailable } from "@/lib/onramp";
 
 const ALTERNATIVES = [
   {
@@ -33,6 +35,34 @@ export default function BuyPage() {
           <p className="mt-4 text-center text-xs leading-relaxed text-[var(--color-muted)]">
             Demo mode. No payment is taken and no real funds move.
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // A real on-ramp, once any provider has keys. The provider delivers to the
+  // user's own deposit address, so the scanner credits it like any deposit.
+  if (onrampAvailable()) {
+    return (
+      <div className="h-full overflow-y-auto p-6">
+        <div className="mx-auto mt-8 max-w-lg space-y-6">
+          <BuyCryptoPanel />
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-[var(--color-foreground)]">Other ways to fund your account</p>
+            {ALTERNATIVES.map((a) => (
+              <Link
+                key={a.href}
+                href={a.href}
+                className="flex items-center justify-between gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition hover:border-[var(--color-accent)]"
+              >
+                <span>
+                  <span className="block text-sm font-medium text-[var(--color-foreground)]">{a.title}</span>
+                  <span className="block text-xs text-[var(--color-muted)]">{a.body}</span>
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-[var(--color-muted)]" />
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
     );

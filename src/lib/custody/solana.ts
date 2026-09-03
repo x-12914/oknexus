@@ -12,7 +12,10 @@ import { mnemonicToSeedSync } from "bip39";
 import type { ChainAdapter, ChainConfig, OnChainDeposit } from "./types";
 import { turnkeyConfigured, signSolanaTransaction } from "@/lib/turnkey";
 
-// Solana custody adapter (devnet today; mainnet-beta by changing SOL_RPC_URL).
+// Solana custody adapter. Devnet by default; mainnet-beta when SOL_RPC_URL
+// points at a mainnet endpoint, which also switches the explorer links.
+const SOL_MAINNET = (process.env.SOL_RPC_URL ?? "").includes("mainnet");
+const CLUSTER = SOL_MAINNET ? "" : "?cluster=devnet";
 // Account model — deposits are found by scanning each address's recent
 // signatures and taking the net lamport delta, which catches airdrops and
 // transfers alike. Clients are created lazily so the module is import-safe.
@@ -22,13 +25,13 @@ export class SolanaAdapter implements ChainAdapter {
 
   constructor() {
     this.config = {
-      chain: process.env.SOL_CHAIN_NAME ?? "solana-devnet",
+      chain: process.env.SOL_CHAIN_NAME ?? (SOL_MAINNET ? "solana" : "solana-devnet"),
       kind: "SOL",
       nativeSymbol: "SOL",
       testnet: !(process.env.SOL_RPC_URL ?? "").includes("mainnet"),
       minConfirmations: Number(process.env.SOL_MIN_CONFIRMATIONS ?? 1),
-      explorerTxUrl: (h) => `https://explorer.solana.com/tx/${h}?cluster=devnet`,
-      explorerAddressUrl: (a) => `https://explorer.solana.com/address/${a}?cluster=devnet`,
+      explorerTxUrl: (h) => `https://explorer.solana.com/tx/${h}${CLUSTER}`,
+      explorerAddressUrl: (a) => `https://explorer.solana.com/address/${a}${CLUSTER}`,
       tokens: [],
     };
   }

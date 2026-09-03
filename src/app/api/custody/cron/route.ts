@@ -5,6 +5,7 @@ import { sweepChain } from "@/lib/custody/sweep";
 import { processWithdrawals } from "@/lib/custody/withdrawals";
 import { reconcileAll } from "@/lib/custody/reconcile";
 import { processStopTriggers } from "@/lib/orders";
+import { matchRestingOrders } from "@/lib/matcher";
 import { processPriceAlerts } from "@/lib/price-alerts";
 import { accrueStakes } from "@/lib/earn";
 import { reconcilePayouts, checkPayoutFloat } from "@/lib/ramp/payouts";
@@ -12,6 +13,7 @@ import { pollCollections } from "@/lib/ramp/collections";
 import { turnkeyConfigured } from "@/lib/turnkey";
 import { monitor } from "@/lib/monitoring";
 import { sweepIdempotencyKeys } from "@/lib/idempotency";
+import { reconcileOnrampOrders } from "@/lib/onramp";
 
 // Driven by a system cron on the VPS (every ~minute) with a bearer secret.
 // Runs one deposit-scan + withdrawal-processing pass per chain. Idempotent, and
@@ -23,6 +25,9 @@ export async function POST(req: NextRequest) {
   }
   // Stop-order triggers + price alerts run regardless of custody config (prices only).
   const stops = await processStopTriggers().catch((e) => ({ error: (e as Error).message }));
+  // Resting limit orders fill against live depth. After stops, so an order a
+  // stop just rested can be matched in the same pass.
+  const matches = await matchRestingOrders().catch((e) => ({ error: (e as Error).message }));
   const alerts = await processPriceAlerts().catch((e) => ({ error: (e as Error).message }));
   const staking = await accrueStakes().catch((e) => ({ error: (e as Error).message }));
   // Drives in-flight fiat payouts to a terminal state. Runs here rather than
@@ -32,6 +37,8 @@ export async function POST(req: NextRequest) {
   // Naira arriving over the bank rail. Runs alongside payouts rather than under
   // the custody gate: collections need the provider, not a chain.
   const collections = await pollCollections().catch((e) => ({ error: (e as Error).message }));
+  // Card/bank purchases whose provider callback never arrived.
+  const onramp = await reconcileOnrampOrders().catch((e) => ({ error: (e as Error).message }));
   // Expired idempotency keys. Retention is deliberately short: the point is to
   // absorb a retry, not to remember every request forever.
   const idem = await sweepIdempotencyKeys().catch((e) => ({ error: (e as Error).message }));
@@ -41,7 +48,7 @@ export async function POST(req: NextRequest) {
   if (!turnkeyConfigured() && !process.env.CUSTODY_MNEMONIC) {
     const health = await monitor().catch((e) => ({ error: (e as Error).message }));
     return Response.json({
-      ok: true, stops, alerts, staking, payouts, float, collections, idem, health,
+      ok: true, stops, matches, alerts, staking, payouts, float, collections, onramp, idem, health,
       reason: "custody not configured",
     });
   }
@@ -68,6 +75,6 @@ export async function POST(req: NextRequest) {
   ).catch((e) => ({ error: (e as Error).message }));
 
   return Response.json({
-    ok: true, stops, alerts, staking, payouts, float, collections, idem, reconcile, health, chains,
+    ok: true, stops, matches, alerts, staking, payouts, float, collections, onramp, idem, reconcile, health, chains,
   });
 }

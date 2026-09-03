@@ -9,7 +9,13 @@ import { turnkeyConfigured } from "@/lib/turnkey";
 bitcoin.initEccLib(ecc);
 const bip32 = BIP32Factory(ecc);
 const ECPair = ECPairFactory(ecc);
-const NETWORK = bitcoin.networks.testnet;
+// Mainnet when BTC_NETWORK=mainnet, testnet otherwise. Everything keys off this
+// one switch: address prefix, derivation coin type, Esplora host, explorer.
+const IS_MAINNET = (process.env.BTC_NETWORK ?? "testnet").toLowerCase() === "mainnet";
+const NETWORK = IS_MAINNET ? bitcoin.networks.bitcoin : bitcoin.networks.testnet;
+const COIN_TYPE = IS_MAINNET ? 0 : 1;
+const ESPLORA_DEFAULT = IS_MAINNET ? "https://blockstream.info/api" : "https://blockstream.info/testnet/api";
+const EXPLORER = IS_MAINNET ? "https://blockstream.info" : "https://blockstream.info/testnet";
 const SATS = 100_000_000;
 
 // Bitcoin testnet custody via Blockstream Esplora (no node, no key). UTXO model:
@@ -20,15 +26,15 @@ export class BitcoinAdapter implements ChainAdapter {
   private readonly base: string;
 
   constructor() {
-    this.base = process.env.BTC_ESPLORA_URL ?? "https://blockstream.info/testnet/api";
+    this.base = process.env.BTC_ESPLORA_URL ?? ESPLORA_DEFAULT;
     this.config = {
-      chain: process.env.BTC_CHAIN_NAME ?? "bitcoin-testnet",
+      chain: process.env.BTC_CHAIN_NAME ?? (IS_MAINNET ? "bitcoin" : "bitcoin-testnet"),
       kind: "BTC",
       nativeSymbol: "BTC",
-      testnet: NETWORK === bitcoin.networks.testnet,
-      minConfirmations: Number(process.env.BTC_MIN_CONFIRMATIONS ?? 1),
-      explorerTxUrl: (h) => `https://blockstream.info/testnet/tx/${h}`,
-      explorerAddressUrl: (a) => `https://blockstream.info/testnet/address/${a}`,
+      testnet: !IS_MAINNET,
+      minConfirmations: Number(process.env.BTC_MIN_CONFIRMATIONS ?? (IS_MAINNET ? 3 : 1)),
+      explorerTxUrl: (h) => `${EXPLORER}/tx/${h}`,
+      explorerAddressUrl: (a) => `${EXPLORER}/address/${a}`,
       tokens: [],
     };
   }
@@ -41,7 +47,7 @@ export class BitcoinAdapter implements ChainAdapter {
 
   private node(index: number) {
     const seed = mnemonicToSeedSync(this.mnemonic(), "");
-    return bip32.fromSeed(seed, NETWORK).derivePath(`m/84'/1'/0'/0/${index}`);
+    return bip32.fromSeed(seed, NETWORK).derivePath(`m/84'/${COIN_TYPE}'/0'/0/${index}`);
   }
 
   private p2wpkh(pubkey: Uint8Array) {

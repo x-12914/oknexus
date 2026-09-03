@@ -5,8 +5,13 @@ import type { ChainAdapter, ChainConfig } from "./types";
 
 // Which chains custody supports, all behind the same ChainAdapter interface.
 export const EVM_CHAIN = process.env.EVM_CHAIN_NAME ?? "ethereum-sepolia";
-export const SOL_CHAIN = process.env.SOL_CHAIN_NAME ?? "solana-devnet";
-export const BTC_CHAIN = process.env.BTC_CHAIN_NAME ?? "bitcoin-testnet";
+// Defaults must agree with the adapters' own defaults, which follow the network
+// they are pointed at; otherwise the registry would look up a chain by a name
+// the adapter never reports.
+export const SOL_CHAIN =
+  process.env.SOL_CHAIN_NAME ?? ((process.env.SOL_RPC_URL ?? "").includes("mainnet") ? "solana" : "solana-devnet");
+export const BTC_CHAIN =
+  process.env.BTC_CHAIN_NAME ?? ((process.env.BTC_NETWORK ?? "").toLowerCase() === "mainnet" ? "bitcoin" : "bitcoin-testnet");
 export const DEFAULT_CHAIN = EVM_CHAIN;
 
 /**

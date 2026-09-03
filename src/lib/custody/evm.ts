@@ -56,19 +56,51 @@ function evmRpcUrl(): string | undefined {
   return process.env.EVM_RPC_URL;
 }
 
+/**
+ * Read EVM_TOKENS. Accepts strict JSON and the quote-stripped form a shell
+ * leaves behind (`[{symbol:USDT,address:0x...,decimals:6}]`), because that is
+ * exactly what happened in production: the value was pasted without quotes,
+ * this returned [] silently, and no stablecoin deposit was scanned for weeks.
+ * Returns null when the value is set but cannot be read, so monitoring can say so.
+ */
+export function parseTokenList(raw: string): TokenConfig[] | null {
+  const relaxed = raw
+    .replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/g, '$1"$2":')
+    .replace(/:\s*([A-Za-z0-9_]+)\s*([,}])/g, ':"$1"$2');
+  for (const attempt of [raw, relaxed]) {
+    try {
+      const arr = JSON.parse(attempt) as { symbol?: unknown; address?: unknown; decimals?: unknown }[];
+      if (!Array.isArray(arr)) continue;
+      const out: TokenConfig[] = [];
+      for (const t of arr) {
+        const symbol = String(t.symbol ?? "").toUpperCase();
+        const decimals = Number(t.decimals);
+        if (!symbol || !Number.isInteger(decimals)) return null;
+        out.push({ symbol, address: getAddress(String(t.address)), decimals });
+      }
+      return out;
+    } catch {
+      // try the next form
+    }
+  }
+  return null;
+}
+
+/** True when EVM_TOKENS is set but unreadable: tokens are configured and yet none will be scanned. */
+export function tokensMisconfigured(): boolean {
+  const raw = process.env.EVM_TOKENS;
+  return Boolean(raw) && parseTokenList(raw!) === null;
+}
+
 function parseTokens(): TokenConfig[] {
   const raw = process.env.EVM_TOKENS;
   if (!raw) return [];
-  try {
-    const arr = JSON.parse(raw) as TokenConfig[];
-    return arr.map((t) => ({
-      symbol: t.symbol,
-      address: getAddress(t.address),
-      decimals: t.decimals,
-    }));
-  } catch {
+  const list = parseTokenList(raw);
+  if (list === null) {
+    console.error("[custody] EVM_TOKENS is set but could not be parsed; no ERC-20 deposits will be scanned");
     return [];
   }
+  return list;
 }
 
 // EVM custody adapter. Points at Sepolia today; the same code runs on mainnet by
