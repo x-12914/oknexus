@@ -34,6 +34,7 @@ export default async function ProfilePage() {
         name: true,
         role: true,
         kycStatus: true,
+        kycBasicStatus: true,
         twoFAEnabled: true,
         emailVerified: true,
         createdAt: true,
@@ -43,7 +44,12 @@ export default async function ProfilePage() {
   ]);
   if (!user) redirect("/login");
 
-  const kyc = KYC_COPY[user.kycStatus] ?? KYC_COPY.NONE;
+  // A Basic (NIN register) approval earns the green badge, but the copy below
+  // still says what it does not unlock.
+  const kyc =
+    user.kycStatus !== "APPROVED" && user.kycBasicStatus === "APPROVED"
+      ? { label: "Basic", tone: "good" as const }
+      : (KYC_COPY[user.kycStatus] ?? KYC_COPY.NONE);
   const initials = (user.name || user.email || "?").slice(0, 2).toUpperCase();
 
   return (
@@ -112,7 +118,9 @@ export default async function ProfilePage() {
             <p className="mt-2 text-xs leading-relaxed text-[var(--color-muted)]">
               {user.kycStatus === "APPROVED"
                 ? "You can withdraw to a bank account."
-                : "Verifying your identity is required before withdrawing to a bank account."}
+                : user.kycBasicStatus === "APPROVED"
+                  ? "Your details are verified. Verify with your ID to withdraw to a bank account."
+                  : "Verifying your identity is required before withdrawing to a bank account."}
             </p>
             {user.kycStatus !== "APPROVED" && (
               <Link

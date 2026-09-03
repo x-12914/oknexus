@@ -65,7 +65,9 @@ export interface AdminAd {
 }
 
 export interface KycInfo {
-  status: string; // NONE | PENDING | APPROVED | REJECTED | REVIEW
+  status: string; // full (document) verification: NONE | PENDING | APPROVED | REJECTED | REVIEW
+  basicStatus?: string; // NIN-register verification, same states; never unlocks fiat
+  basicAvailable?: boolean; // true when the no-document route can be offered
   legalName: string | null;
   country: string | null;
   idNumber: string | null;

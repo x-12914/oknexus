@@ -1,5 +1,5 @@
 import { StubKycProvider } from "./stub-provider";
-import { DiditKycProvider, diditConfigured } from "./didit-provider";
+import { DiditKycProvider, diditBasicConfigured, diditConfigured } from "./didit-provider";
 import type { KycProvider } from "./types";
 
 let cached: KycProvider | undefined;
@@ -25,6 +25,15 @@ export function getKycProvider(): KycProvider {
 /** True when a real hosted provider (not the stub) is active — drives the UI flow. */
 export function kycAutomated(): boolean {
   return providerId() !== "stub";
+}
+
+/**
+ * True when the no-document route (name + NIN against the national register)
+ * can be offered. Didit only: the stub approves everything, so a second route
+ * there would be theatre.
+ */
+export function kycBasicAvailable(): boolean {
+  return providerId() === "didit" && diditBasicConfigured();
 }
 
 export type { KycProvider, KycApplicant, KycLevel, KycSession, KycVerdict } from "./types";

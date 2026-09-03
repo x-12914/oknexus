@@ -15,9 +15,12 @@ export default async function VerificationPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { kycStatus: true },
+    select: { kycStatus: true, kycBasicStatus: true },
   });
-  const current = tierFor(user?.kycStatus ?? "NONE");
+  const current = tierFor({
+    kycStatus: user?.kycStatus ?? "NONE",
+    kycBasicStatus: user?.kycBasicStatus ?? "NONE",
+  });
   const limit = await dailyLimitStatus(userId);
   const usedPct = limit.limitUsd > 0 ? Math.min(100, (limit.usedUsd / limit.limitUsd) * 100) : 0;
 

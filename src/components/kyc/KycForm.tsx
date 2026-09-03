@@ -2,10 +2,65 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Loader2, ShieldCheck, Clock, XCircle } from "lucide-react";
+import { ArrowLeft, Clock, Loader2, ShieldCheck, UserCheck, XCircle } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import type { KycInfo } from "@/lib/admin-types";
+
+type Route = "basic" | "full";
+
+interface Banner {
+  cls: string;
+  text: string;
+  icon: React.ReactNode;
+}
+
+const GOOD = "border-[var(--color-up)]/40 bg-[var(--color-up)]/10 text-[var(--color-up)]";
+const WAIT = "border-amber-500/40 bg-amber-500/10 text-amber-500";
+const BAD = "border-[var(--color-down)]/40 bg-[var(--color-down)]/10 text-[var(--color-down)]";
+
+const FULL_BANNER: Record<string, Banner> = {
+  PENDING: {
+    cls: WAIT,
+    text: "We're processing your verification. This page updates automatically.",
+    icon: <Clock className="h-4 w-4" />,
+  },
+  REJECTED: {
+    cls: BAD,
+    text: "Your last attempt was rejected. You can try again.",
+    icon: <XCircle className="h-4 w-4" />,
+  },
+  REVIEW: {
+    cls: WAIT,
+    text: "Your verification is under manual review. We'll update you shortly.",
+    icon: <Clock className="h-4 w-4" />,
+  },
+};
+
+// No reviewer sits behind the basic route, so a partial match is advice, not a
+// queue: fix the spelling, or take the document route.
+const BASIC_BANNER: Record<string, Banner> = {
+  APPROVED: {
+    cls: GOOD,
+    text: "Your name and NIN matched the register. Your Basic limit is active.",
+    icon: <ShieldCheck className="h-4 w-4" />,
+  },
+  PENDING: {
+    cls: WAIT,
+    text: "Checking your details against the register. This page updates automatically.",
+    icon: <Clock className="h-4 w-4" />,
+  },
+  REJECTED: {
+    cls: BAD,
+    text: "Your details didn't match the register. Check your name is spelt as registered, or use full verification.",
+    icon: <XCircle className="h-4 w-4" />,
+  },
+  REVIEW: {
+    cls: WAIT,
+    text: "Your details only partly matched. Try again with your name exactly as registered, or use full verification.",
+    icon: <Clock className="h-4 w-4" />,
+  },
+};
 
 export function KycForm() {
   const [info, setInfo] = useState<KycInfo | null>(null);
@@ -13,7 +68,7 @@ export function KycForm() {
   const [country, setCountry] = useState("");
   const [idNumber, setIdNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [starting, setStarting] = useState(false);
+  const [starting, setStarting] = useState<Route | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => api.kyc().then(setInfo).catch(() => {}), []);
@@ -21,22 +76,26 @@ export function KycForm() {
     load();
   }, [load]);
 
+  const status = info?.status ?? "NONE";
+  const basic = info?.basicStatus ?? "NONE";
+  const processing = status === "PENDING" || basic === "PENDING";
+
   // While a hosted verification is processing, poll so the result lands without a manual refresh.
   useEffect(() => {
-    if (!info?.automated || info.status !== "PENDING") return;
+    if (!info?.automated || !processing) return;
     const id = setInterval(load, 5000);
     return () => clearInterval(id);
-  }, [info?.automated, info?.status, load]);
+  }, [info?.automated, processing, load]);
 
-  const startDidit = async () => {
+  const start = async (route: Route) => {
     setError(null);
-    setStarting(true);
+    setStarting(route);
     try {
-      const { url } = await api.kycStart();
+      const { url } = await api.kycStart(route);
       window.location.href = url; // hand off to the hosted verification flow
     } catch (e) {
       setError((e as Error).message);
-      setStarting(false);
+      setStarting(null);
     }
   };
 
@@ -53,33 +112,25 @@ export function KycForm() {
     }
   };
 
-  const status = info?.status ?? "NONE";
   const canSubmit =
     legalName.trim() && country.trim() && idNumber.trim() && !submitting && status !== "APPROVED";
 
-  const banner: Record<string, { cls: string; text: string; icon: React.ReactNode }> = {
-    APPROVED: {
-      cls: "border-[var(--color-up)]/40 bg-[var(--color-up)]/10 text-[var(--color-up)]",
-      text: "Your identity is verified.",
-      icon: <ShieldCheck className="h-4 w-4" />,
-    },
-    PENDING: {
-      cls: "border-amber-500/40 bg-amber-500/10 text-amber-500",
-      text: "Your submission is under review.",
-      icon: <Clock className="h-4 w-4" />,
-    },
-    REJECTED: {
-      cls: "border-[var(--color-down)]/40 bg-[var(--color-down)]/10 text-[var(--color-down)]",
-      text: "Your last submission was rejected. Please re-submit.",
-      icon: <XCircle className="h-4 w-4" />,
-    },
-    REVIEW: {
-      cls: "border-amber-500/40 bg-amber-500/10 text-amber-500",
-      text: "Your verification is under manual review. We'll update you shortly.",
-      icon: <Clock className="h-4 w-4" />,
-    },
-  };
-  const b = banner[status];
+  const basicCta =
+    basic === "APPROVED"
+      ? null
+      : basic === "PENDING"
+        ? "Continue"
+        : basic === "NONE"
+          ? "Verify with my NIN"
+          : "Try again";
+  const fullCta =
+    status === "REVIEW"
+      ? null
+      : status === "PENDING"
+        ? "Continue verification"
+        : status === "REJECTED"
+          ? "Try again"
+          : "Verify with my ID";
 
   return (
     <div className="p-6 max-w-md mx-auto">
@@ -92,45 +143,59 @@ export function KycForm() {
       <h1 className="text-xl font-semibold mb-1">Identity verification</h1>
       <p className="text-sm text-[var(--color-muted)] mb-4">
         {info?.automated
-          ? "Verify your identity to unlock higher limits. It only takes about a minute."
+          ? info.basicAvailable
+            ? "Verify your identity to unlock higher limits. Pick the route that suits you."
+            : "Verify your identity to unlock higher limits. It only takes about a minute."
           : "Verify your identity to unlock higher limits. A reviewer checks each submission."}
       </p>
 
-      {b ? (
-        <div className={cn("rounded-lg border px-3 py-2 text-sm mb-4 flex items-center gap-2", b.cls)}>
-          {b.icon} {b.text}
+      {status === "APPROVED" ? (
+        <div className={cn("rounded-lg border px-3 py-2 text-sm mb-4 flex items-center gap-2", GOOD)}>
+          <ShieldCheck className="h-4 w-4" /> Your identity is verified.
         </div>
-      ) : null}
-
-      {status === "APPROVED" ? null : info?.automated ? (
-        status === "REVIEW" ? null : (
-          <div className="rounded-2xl glass p-4 space-y-3">
-            <p className="text-sm text-[var(--color-muted)]">
-              {status === "PENDING"
-                ? "We're processing your verification — this page updates automatically when it's ready."
-                : "You'll verify with a photo of your ID and a quick selfie. We never store your documents on our servers."}
-            </p>
-            {error ? <div className="text-sm text-[var(--color-down)]">{error}</div> : null}
-            <button
-              type="button"
-              disabled={starting}
-              onClick={startDidit}
-              className="btn-brand w-full py-3 rounded-xl font-medium flex items-center justify-center gap-2 disabled:opacity-60"
-            >
-              {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-              {status === "PENDING"
-                ? "Continue verification"
-                : status === "REJECTED"
-                  ? "Try again"
-                  : "Verify my identity"}
-            </button>
-            <p className="text-[11px] text-[var(--color-muted)] text-center">
-              You'll be securely redirected to complete verification, then brought back here.
-            </p>
-          </div>
-        )
+      ) : info?.automated ? (
+        <div className="space-y-4">
+          {info.basicAvailable && (
+            <RouteCard
+              icon={<UserCheck className="h-4 w-4 text-[var(--color-accent)]" />}
+              title="Quick verification"
+              subtitle="Name and NIN. No photos."
+              body="We match your name and NIN against the national identity register. Under a minute, and it raises your daily crypto withdrawal limit."
+              banner={BASIC_BANNER[basic]}
+              cta={basicCta}
+              busy={starting === "basic"}
+              disabled={starting !== null}
+              onClick={() => start("basic")}
+            />
+          )}
+          <RouteCard
+            icon={<ShieldCheck className="h-4 w-4 text-[var(--color-accent)]" />}
+            title="Full verification"
+            subtitle="A photo of your ID and a quick selfie."
+            body="Unlocks withdrawals to a bank account and the highest daily limit. We never store your documents on our servers."
+            banner={FULL_BANNER[status]}
+            cta={fullCta}
+            busy={starting === "full"}
+            disabled={starting !== null}
+            onClick={() => start("full")}
+          />
+          {error ? <div className="text-sm text-[var(--color-down)]">{error}</div> : null}
+          <p className="text-[11px] text-[var(--color-muted)] text-center">
+            You'll be securely redirected to complete verification, then brought back here.
+          </p>
+        </div>
       ) : (
         <div className="rounded-2xl glass p-4 space-y-3">
+          {FULL_BANNER[status] ? (
+            <div
+              className={cn(
+                "rounded-lg border px-3 py-2 text-sm flex items-center gap-2",
+                FULL_BANNER[status].cls,
+              )}
+            >
+              {FULL_BANNER[status].icon} {FULL_BANNER[status].text}
+            </div>
+          ) : null}
           <Field label="Full legal name" value={legalName} onChange={setLegalName} placeholder="Ada Lovelace" />
           <Field label="Country of residence" value={country} onChange={setCountry} placeholder="Nigeria" />
           <Field
@@ -157,6 +222,58 @@ export function KycForm() {
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+function RouteCard({
+  icon,
+  title,
+  subtitle,
+  body,
+  banner,
+  cta,
+  busy,
+  disabled,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  body: string;
+  banner?: Banner;
+  /** Null hides the button: nothing for the user to do on this route right now. */
+  cta: string | null;
+  busy: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <div className="rounded-2xl glass p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        {icon}
+        <div>
+          <h2 className="text-sm font-semibold text-[var(--color-foreground)]">{title}</h2>
+          <p className="text-xs text-[var(--color-muted)]">{subtitle}</p>
+        </div>
+      </div>
+      {banner ? (
+        <div className={cn("rounded-lg border px-3 py-2 text-sm flex items-center gap-2", banner.cls)}>
+          {banner.icon} {banner.text}
+        </div>
+      ) : null}
+      <p className="text-sm text-[var(--color-muted)]">{body}</p>
+      {cta ? (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onClick}
+          className="btn-brand w-full py-3 rounded-xl font-medium flex items-center justify-center gap-2 disabled:opacity-60"
+        >
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
+          {cta}
+        </button>
+      ) : null}
     </div>
   );
 }

@@ -24,6 +24,10 @@ model User {
   kycCountry    String?
   kycIdNumber   String?
   kycReviewedAt DateTime?
+  /// Basic tier: name + NIN matched against the national register, no document.
+  /// Kept apart from kycStatus so nothing that gates fiat can be satisfied by it.
+  kycBasicStatus     KycStatus @default(NONE)
+  kycBasicReviewedAt DateTime?
   twoFAEnabled  Boolean   @default(false)
   twoFASecret   String? // encrypted TOTP secret (AES-256-GCM)
   tokenVersion  Int       @default(0) // bump to invalidate all existing sessions ("sign out everywhere")
@@ -78,6 +82,8 @@ model KycSession {
   provider  String // "didit"
   sessionId String   @unique
   status    String   @default("PENDING")
+  /// Which verification this session belongs to: "basic" (NIN register) or "full" (document).
+  level     String   @default("full")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
