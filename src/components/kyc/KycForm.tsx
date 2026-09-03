@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Clock, Loader2, ShieldCheck, UserCheck, XCircle } from "lucide-react";
+import { ArrowLeft, Clock, Fingerprint, Loader2, ShieldCheck, UserCheck, XCircle } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import type { KycInfo } from "@/lib/admin-types";
 
-type Route = "basic" | "full";
+type Route = "basic" | "bvn" | "full";
 
 interface Banner {
   cls: string;
@@ -19,6 +19,7 @@ const GOOD = "border-[var(--color-up)]/40 bg-[var(--color-up)]/10 text-[var(--co
 const WAIT = "border-amber-500/40 bg-amber-500/10 text-amber-500";
 const BAD = "border-[var(--color-down)]/40 bg-[var(--color-down)]/10 text-[var(--color-down)]";
 
+// The BVN and ID routes share one status, because both are full verification.
 const FULL_BANNER: Record<string, Banner> = {
   PENDING: {
     cls: WAIT,
@@ -27,7 +28,7 @@ const FULL_BANNER: Record<string, Banner> = {
   },
   REJECTED: {
     cls: BAD,
-    text: "Your last attempt was rejected. You can try again.",
+    text: "Your last attempt was rejected. You can try again, or try the other route.",
     icon: <XCircle className="h-4 w-4" />,
   },
   REVIEW: {
@@ -38,7 +39,7 @@ const FULL_BANNER: Record<string, Banner> = {
 };
 
 // No reviewer sits behind the basic route, so a partial match is advice, not a
-// queue: fix the spelling, or take the document route.
+// queue: fix the spelling, or take a full route.
 const BASIC_BANNER: Record<string, Banner> = {
   APPROVED: {
     cls: GOOD,
@@ -123,14 +124,10 @@ export function KycForm() {
         : basic === "NONE"
           ? "Verify with my NIN"
           : "Try again";
-  const fullCta =
-    status === "REVIEW"
-      ? null
-      : status === "PENDING"
-        ? "Continue verification"
-        : status === "REJECTED"
-          ? "Try again"
-          : "Verify with my ID";
+  const fullCta = (what: string) =>
+    status === "PENDING" ? `Continue with ${what}` : status === "REJECTED" ? `Try again with ${what}` : `Verify with ${what}`;
+
+  const routes = (info?.basicAvailable ? 1 : 0) + (info?.bvnAvailable ? 1 : 0) + 1;
 
   return (
     <div className="p-6 max-w-md mx-auto">
@@ -143,7 +140,7 @@ export function KycForm() {
       <h1 className="text-xl font-semibold mb-1">Identity verification</h1>
       <p className="text-sm text-[var(--color-muted)] mb-4">
         {info?.automated
-          ? info.basicAvailable
+          ? routes > 1
             ? "Verify your identity to unlock higher limits. Pick the route that suits you."
             : "Verify your identity to unlock higher limits. It only takes about a minute."
           : "Verify your identity to unlock higher limits. A reviewer checks each submission."}
@@ -154,7 +151,7 @@ export function KycForm() {
           <ShieldCheck className="h-4 w-4" /> Your identity is verified.
         </div>
       ) : info?.automated ? (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {info.basicAvailable && (
             <RouteCard
               icon={<UserCheck className="h-4 w-4 text-[var(--color-accent)]" />}
@@ -168,17 +165,52 @@ export function KycForm() {
               onClick={() => start("basic")}
             />
           )}
-          <RouteCard
-            icon={<ShieldCheck className="h-4 w-4 text-[var(--color-accent)]" />}
-            title="Full verification"
-            subtitle="A photo of your ID and a quick selfie."
-            body="Unlocks withdrawals to a bank account and the highest daily limit. We never store your documents on our servers."
-            banner={FULL_BANNER[status]}
-            cta={fullCta}
-            busy={starting === "full"}
-            disabled={starting !== null}
-            onClick={() => start("full")}
-          />
+
+          <section className="space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold text-[var(--color-foreground)]">Full verification</h2>
+              <p className="text-xs text-[var(--color-muted)]">
+                Unlocks withdrawals to a bank account and the highest daily limit.
+              </p>
+            </div>
+            {FULL_BANNER[status] ? (
+              <div
+                className={cn(
+                  "rounded-lg border px-3 py-2 text-sm flex items-center gap-2",
+                  FULL_BANNER[status].cls,
+                )}
+              >
+                {FULL_BANNER[status].icon} {FULL_BANNER[status].text}
+              </div>
+            ) : null}
+            {status !== "REVIEW" && (
+              <>
+                {info.bvnAvailable && (
+                  <RouteCard
+                    icon={<Fingerprint className="h-4 w-4 text-[var(--color-accent)]" />}
+                    title="BVN and a selfie"
+                    subtitle="No documents. For Nigerian bank customers."
+                    body="We match a quick selfie to the photo your bank holds for your BVN. Nothing to photograph or upload."
+                    cta={fullCta("BVN")}
+                    busy={starting === "bvn"}
+                    disabled={starting !== null}
+                    onClick={() => start("bvn")}
+                  />
+                )}
+                <RouteCard
+                  icon={<ShieldCheck className="h-4 w-4 text-[var(--color-accent)]" />}
+                  title="ID document and a selfie"
+                  subtitle={info.bvnAvailable ? "For anyone without a BVN." : "A photo of your ID and a quick selfie."}
+                  body="A photo of your government ID and a quick selfie. We never store your documents on our servers."
+                  cta={fullCta("my ID")}
+                  busy={starting === "full"}
+                  disabled={starting !== null}
+                  onClick={() => start("full")}
+                />
+              </>
+            )}
+          </section>
+
           {error ? <div className="text-sm text-[var(--color-down)]">{error}</div> : null}
           <p className="text-[11px] text-[var(--color-muted)] text-center">
             You'll be securely redirected to complete verification, then brought back here.
@@ -253,7 +285,7 @@ function RouteCard({
       <div className="flex items-center gap-2">
         {icon}
         <div>
-          <h2 className="text-sm font-semibold text-[var(--color-foreground)]">{title}</h2>
+          <h3 className="text-sm font-semibold text-[var(--color-foreground)]">{title}</h3>
           <p className="text-xs text-[var(--color-muted)]">{subtitle}</p>
         </div>
       </div>

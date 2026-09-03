@@ -40,7 +40,7 @@ export const TIERS: VerificationTier[] = [
   {
     id: "verified",
     label: "Verified",
-    requirement: "Government ID and a selfie, checked automatically",
+    requirement: "A selfie matched to your government ID, or to your BVN record",
     dailyWithdrawUsd: Number(process.env.WITHDRAW_DAILY_USD_LIMIT ?? 2000),
     fiatWithdrawal: true,
     perks: ["Everything above", "Cash out to a bank account", "The highest daily limit"],

@@ -68,6 +68,7 @@ export interface KycInfo {
   status: string; // full (document) verification: NONE | PENDING | APPROVED | REJECTED | REVIEW
   basicStatus?: string; // NIN-register verification, same states; never unlocks fiat
   basicAvailable?: boolean; // true when the no-document route can be offered
+  bvnAvailable?: boolean; // true when BVN + selfie (no document, full strength) can be offered
   legalName: string | null;
   country: string | null;
   idNumber: string | null;

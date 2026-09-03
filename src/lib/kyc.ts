@@ -1,19 +1,26 @@
 import type { KycStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import type { KycInfo } from "@/lib/admin-types";
-import { getKycProvider, kycAutomated, kycBasicAvailable } from "@/lib/kyc/index";
+import {
+  getKycProvider,
+  kycAutomated,
+  kycBasicAvailable,
+  kycBvnAvailable,
+} from "@/lib/kyc/index";
 import { notify } from "@/lib/notifications";
 
 /**
- * The two ways to verify.
+ * The three ways to verify.
  *
- * "full" is document + selfie (+ AML) and writes User.kycStatus, which is what
- * every fiat gate reads. "basic" is name + NIN matched against the national
- * register and writes User.kycBasicStatus, which raises the crypto withdrawal
- * cap and nothing else. They are separate columns on purpose: a basic approval
- * must never be able to satisfy a check that was written for the full one.
+ * "full" is document + selfie and "bvn" is BVN + selfie face-matched to the
+ * bank's own portrait. Both bind a live person to a real identity, so both
+ * write User.kycStatus, which is what every fiat gate reads. "basic" is name +
+ * NIN matched against the national register: it proves the identity is real
+ * but not who is typing, so it writes User.kycBasicStatus, which raises the
+ * crypto withdrawal cap and nothing else. The columns are separate on purpose:
+ * a basic approval must never satisfy a check written for the full one.
  */
-export type KycRoute = "basic" | "full";
+export type KycRoute = "basic" | "bvn" | "full";
 
 export async function getKyc(userId: string): Promise<KycInfo> {
   const u = await prisma.user.findUnique({
@@ -30,6 +37,7 @@ export async function getKyc(userId: string): Promise<KycInfo> {
     status: u?.kycStatus ?? "NONE",
     basicStatus: u?.kycBasicStatus ?? "NONE",
     basicAvailable: kycBasicAvailable(),
+    bvnAvailable: kycBvnAvailable(),
     legalName: u?.kycLegalName ?? null,
     country: u?.kycCountry ?? null,
     idNumber: u?.kycIdNumber ?? null,
@@ -52,6 +60,9 @@ export async function startKycVerification(
   });
   if (!user) throw new Error("Account not found.");
   if (user.kycStatus === "APPROVED") throw new Error("Your identity is already verified.");
+  if (route === "bvn" && !kycBvnAvailable()) {
+    throw new Error("BVN verification is not available right now.");
+  }
   if (route === "basic") {
     if (!kycBasicAvailable()) throw new Error("Quick verification is not available right now.");
     if (user.kycBasicStatus === "APPROVED") {
@@ -64,7 +75,7 @@ export async function startKycVerification(
   const provider = getKycProvider();
   const session = await provider.startVerification(
     { userId, email: user.email },
-    route === "basic" ? "basic" : "advanced",
+    route === "full" ? "advanced" : route,
   );
 
   await prisma.kycSession.create({
@@ -161,6 +172,16 @@ const FULL_MSG: Partial<Record<KycStatus, Msg>> = {
   },
 };
 
+// BVN writes the full column, so REVIEW here does reach the admin queue.
+const BVN_MSG: Partial<Record<KycStatus, Msg>> = {
+  APPROVED: FULL_MSG.APPROVED,
+  REJECTED: {
+    title: "BVN check failed",
+    body: "We couldn't match your selfie and BVN to your bank record. Check the BVN, or verify with your ID instead.",
+  },
+  REVIEW: FULL_MSG.REVIEW,
+};
+
 // The basic route has no reviewer behind it: a partial match is not a queue, it
 // is a hint to fix the spelling or take the document route instead.
 const BASIC_MSG: Partial<Record<KycStatus, Msg>> = {
@@ -201,7 +222,8 @@ export async function applyDiditResult(
   if (!userId) return;
   // A session we hold no row for predates the level column, when only the full
   // route existed. Basic sessions are always recorded with their level.
-  const route: KycRoute = record?.level === "basic" ? "basic" : "full";
+  const route: KycRoute =
+    record?.level === "basic" ? "basic" : record?.level === "bvn" ? "bvn" : "full";
 
   // Only touch a user that actually exists. A test webhook (fake vendor_data) or a
   // since-deleted account must ACK (200), not throw: a 500 makes Didit retry forever.
@@ -223,7 +245,7 @@ export async function applyDiditResult(
         : { kycStatus: kyc, ...(reviewedAt ? { kycReviewedAt: reviewedAt } : {}) },
   });
 
-  const m = (route === "basic" ? BASIC_MSG : FULL_MSG)[kyc];
+  const m = (route === "basic" ? BASIC_MSG : route === "bvn" ? BVN_MSG : FULL_MSG)[kyc];
   if (m) await notify(userId, { type: "SECURITY", title: m.title, body: m.body, href: "/kyc" });
 }
 

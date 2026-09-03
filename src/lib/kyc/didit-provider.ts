@@ -10,6 +10,10 @@ import type { KycApplicant, KycLevel, KycProvider, KycSession, KycVerdict } from
 //   DIDIT_BASIC_WORKFLOW_ID  basic: a questionnaire (name + NIN) followed by a
 //                            Database Validation step against Nigeria's NIMC
 //                            register. No document, no camera. Crypto only.
+//   DIDIT_BVN_WORKFLOW_ID    bvn: questionnaire (BVN) + Liveness + Database
+//                            Validation, which face-matches the selfie to the
+//                            portrait the bank holds. No document. Binds the
+//                            person to the identity, so it ranks as full.
 // The steps live in Didit's console; this code only picks which workflow runs.
 // The basic route is optional and is offered only when its id is set.
 //
@@ -33,9 +37,23 @@ export function diditBasicConfigured(): boolean {
   return diditConfigured() && Boolean(process.env.DIDIT_BASIC_WORKFLOW_ID);
 }
 
-function workflowIdFor(level: KycLevel): string | undefined {
-  return level === "basic" ? process.env.DIDIT_BASIC_WORKFLOW_ID : process.env.DIDIT_WORKFLOW_ID;
+/** BVN + selfie is optional too, and likewise needs the full route configured. */
+export function diditBvnConfigured(): boolean {
+  return diditConfigured() && Boolean(process.env.DIDIT_BVN_WORKFLOW_ID);
 }
+
+function workflowIdFor(level: KycLevel): string | undefined {
+  if (level === "basic") return process.env.DIDIT_BASIC_WORKFLOW_ID;
+  if (level === "bvn") return process.env.DIDIT_BVN_WORKFLOW_ID;
+  return process.env.DIDIT_WORKFLOW_ID;
+}
+
+const NOT_CONFIGURED: Record<KycLevel, string> = {
+  none: "Didit is not configured: set DIDIT_API_KEY + DIDIT_WORKFLOW_ID.",
+  basic: "Quick verification is not enabled: set DIDIT_BASIC_WORKFLOW_ID.",
+  bvn: "BVN verification is not enabled: set DIDIT_BVN_WORKFLOW_ID.",
+  advanced: "Didit is not configured: set DIDIT_API_KEY + DIDIT_WORKFLOW_ID.",
+};
 
 function appUrl(): string {
   return (process.env.AUTH_URL ?? process.env.APP_URL ?? "https://oknexusexchange.com").replace(
@@ -117,13 +135,7 @@ export class DiditKycProvider implements KycProvider {
 
   async startVerification(applicant: KycApplicant, level: KycLevel): Promise<KycSession> {
     const workflowId = workflowIdFor(level);
-    if (!workflowId) {
-      throw new Error(
-        level === "basic"
-          ? "Quick verification is not enabled: set DIDIT_BASIC_WORKFLOW_ID."
-          : "Didit is not configured: set DIDIT_API_KEY + DIDIT_WORKFLOW_ID.",
-      );
-    }
+    if (!workflowId) throw new Error(NOT_CONFIGURED[level]);
     const { sessionId, url } = await createDiditSession(applicant.userId, workflowId);
     return { sessionId, url, expiresAt: new Date(Date.now() + 30 * 60 * 1000) };
   }

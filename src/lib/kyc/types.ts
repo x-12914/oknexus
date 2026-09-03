@@ -1,4 +1,9 @@
-export type KycLevel = "none" | "basic" | "advanced";
+/**
+ * basic    = name + NIN against the national register, no camera.
+ * bvn      = BVN + selfie, face-matched to the bank's enrolment portrait.
+ * advanced = government document + selfie.
+ */
+export type KycLevel = "none" | "basic" | "bvn" | "advanced";
 
 export type KycVerdict = "pending" | "approved" | "rejected";
 

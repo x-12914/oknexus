@@ -430,7 +430,7 @@ export const api = {
       body: JSON.stringify(input),
     }).then((r) => mutate<{ ok: true }>(r, "Submission failed")),
 
-  kycStart: (level: "basic" | "full" = "full") =>
+  kycStart: (level: "basic" | "bvn" | "full" = "full") =>
     fetch("/api/kyc/start", {
       method: "POST",
       headers: { "content-type": "application/json" },

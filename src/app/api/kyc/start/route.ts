@@ -4,7 +4,7 @@ import { sessionUserId } from "@/lib/auth";
 import { startKycVerification } from "@/lib/kyc";
 import { kycAutomated } from "@/lib/kyc/index";
 
-const Body = z.object({ level: z.enum(["basic", "full"]).default("full") });
+const Body = z.object({ level: z.enum(["basic", "bvn", "full"]).default("full") });
 
 // Begin a hosted identity verification and return the provider URL to redirect to.
 export async function POST(req: NextRequest) {
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
   // The body is optional: a client that sends none gets the full route, which
   // is what a bare POST here has always meant.
-  let level: "basic" | "full" = "full";
+  let level: "basic" | "bvn" | "full" = "full";
   const raw = await req.text();
   if (raw.trim()) {
     let json: unknown;

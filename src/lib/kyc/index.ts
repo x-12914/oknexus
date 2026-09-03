@@ -1,5 +1,10 @@
 import { StubKycProvider } from "./stub-provider";
-import { DiditKycProvider, diditBasicConfigured, diditConfigured } from "./didit-provider";
+import {
+  DiditKycProvider,
+  diditBasicConfigured,
+  diditBvnConfigured,
+  diditConfigured,
+} from "./didit-provider";
 import type { KycProvider } from "./types";
 
 let cached: KycProvider | undefined;
@@ -34,6 +39,11 @@ export function kycAutomated(): boolean {
  */
 export function kycBasicAvailable(): boolean {
   return providerId() === "didit" && diditBasicConfigured();
+}
+
+/** True when the BVN + selfie route (no document, still full strength) can be offered. */
+export function kycBvnAvailable(): boolean {
+  return providerId() === "didit" && diditBvnConfigured();
 }
 
 export type { KycProvider, KycApplicant, KycLevel, KycSession, KycVerdict } from "./types";
