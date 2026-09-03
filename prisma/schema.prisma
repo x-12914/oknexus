@@ -82,8 +82,12 @@ model KycSession {
   provider  String // "didit"
   sessionId String   @unique
   status    String   @default("PENDING")
-  /// Which verification this session belongs to: "basic" (NIN register) or "full" (document).
+  /// Which verification this session belongs to: "basic" (NIN register), "bvn" (BVN + selfie) or "full" (document).
   level     String   @default("full")
+  /// Server-side sanctions/PEP screening, run when the workflow itself had no AML step.
+  amlStatus    String? // Approved | In Review | Declined | error:<reason>
+  amlScore     Int?
+  amlRequestId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

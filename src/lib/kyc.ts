@@ -8,6 +8,7 @@ import {
   kycBvnAvailable,
 } from "@/lib/kyc/index";
 import { notify } from "@/lib/notifications";
+import { documentSubject, registrySubject, screenPerson, serverAmlEnabled } from "@/lib/kyc/aml";
 
 /**
  * The three ways to verify.
@@ -233,8 +234,15 @@ export async function applyDiditResult(
     return;
   }
 
-  const kyc = mapDiditStatus(sessionId, status, decision);
+  let kyc = mapDiditStatus(sessionId, status, decision);
   if (!kyc) return;
+
+  // A fiat-unlocking approval from a workflow that ran no sanctions screening
+  // is screened here before it is written. Anything short of a clean answer,
+  // including our own inability to ask, goes to a human rather than through.
+  if (kyc === "APPROVED" && route !== "basic" && !expectedAml(decision) && serverAmlEnabled()) {
+    kyc = await screenApproval(sessionId, user.id, route, decision);
+  }
 
   const reviewedAt = kyc === "APPROVED" || kyc === "REJECTED" ? new Date() : undefined;
   await prisma.user.update({
@@ -247,6 +255,52 @@ export async function applyDiditResult(
 
   const m = (route === "basic" ? BASIC_MSG : route === "bvn" ? BVN_MSG : FULL_MSG)[kyc];
   if (m) await notify(userId, { type: "SECURITY", title: m.title, body: m.body, href: "/kyc" });
+}
+
+/**
+ * Server-side sanctions/PEP screening for an approval. Prefers the identity the
+ * registry confirmed (BVN route) over the one the document's OCR read (ID
+ * route). The result is kept on the session row so a reviewer can see why
+ * someone landed in the queue.
+ */
+async function screenApproval(
+  sessionId: string,
+  userId: string,
+  route: KycRoute,
+  decision: unknown,
+): Promise<"APPROVED" | "REVIEW"> {
+  const subject = registrySubject(decision) ?? documentSubject(decision);
+  if (!subject) {
+    console.warn(`[didit] no identity to screen on session ${sessionId}, routing to REVIEW`);
+    await prisma.kycSession.updateMany({ where: { sessionId }, data: { amlStatus: "error:no-subject" } });
+    return "REVIEW";
+  }
+  const aml = await screenPerson(
+    {
+      fullName: subject.fullName,
+      dateOfBirth: subject.dateOfBirth,
+      nationality: route === "bvn" ? "NG" : undefined,
+      vendorData: userId,
+    },
+    `aml:${sessionId}`,
+  );
+  if (!aml.ok) {
+    console.warn(`[didit] AML screening failed on session ${sessionId} (${aml.reason}), routing to REVIEW`);
+    await prisma.kycSession.updateMany({
+      where: { sessionId },
+      data: { amlStatus: `error:${aml.reason}`.slice(0, 120) },
+    });
+    return "REVIEW";
+  }
+  await prisma.kycSession.updateMany({
+    where: { sessionId },
+    data: { amlStatus: aml.status, amlScore: Math.round(aml.score), amlRequestId: aml.requestId || null },
+  });
+  if (aml.status !== "Approved") {
+    console.info(`[didit] AML ${aml.status} (score ${aml.score}, hits ${aml.hits}) on session ${sessionId}, routing to REVIEW`);
+    return "REVIEW";
+  }
+  return "APPROVED";
 }
 
 export interface KycSubmitInput {
